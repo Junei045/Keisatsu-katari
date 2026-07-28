@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>あやしい電話 体験プログラム｜第1回 警察官騙り</title>
+<style>
+:root{
+  --call-bg:#10151b;
+  --call-bg-2:#1b232c;
+  --paper:#eceef1;
+  --ink:#11161c;
+  --line:#cfd5dc;
+  --muted:#8a96a3;
+  --green:#16a05a;
+  --red:#dc2f26;
+  --amber:#f0a32e;
+  --amber-ink:#5a3a00;
+  --gothic:"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic Medium","Yu Gothic","Meiryo",sans-serif;
+  --num:"SF Mono",Menlo,Consolas,"Courier New",monospace;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  background:#20262e;
+  font-family:var(--gothic);
+  color:var(--ink);
+  font-size:18px;
+  line-height:1.75;
+  display:flex;
+  justify-content:center;
+  min-height:100vh;
+}
+#handset{
+  width:100%;
+  max-width:460px;
+  background:var(--paper);
+  min-height:100vh;
+  position:relative;
+  overflow:hidden;
+}
+@media(min-width:520px){
+  body{align-items:center;padding:24px 0}
+  #handset{min-height:0;height:min(860px,calc(100vh - 48px));border-radius:28px;box-shadow:0 24px 70px rgba(0,0,0,.5)}
+}
+.screen{display:none;height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.screen.on{display:block}
+.pad{padding:26px 22px 40px}
+
+h1{font-size:25px;font-weight:900;line-height:1.4;margin:0 0 6px;letter-spacing:.01em}
+h2{font-size:20px;font-weight:900;margin:30px 0 10px}
+p{margin:0 0 14px}
+.eyebrow{
+  font-size:13px;font-weight:900;letter-spacing:.22em;color:var(--muted);
+  margin:0 0 14px;
+}
+.lead{color:#3d474f}
+.note{font-size:15px;color:#5b6670;line-height:1.7}
+
+.btn{
+  display:block;width:100%;border:0;border-radius:14px;
+  font-family:inherit;font-size:21px;font-weight:900;
+  padding:20px 16px;margin:14px 0 0;cursor:pointer;color:#fff;
+  min-height:66px;
+}
+.btn:focus-visible{outline:3px solid #2b6cb0;outline-offset:3px}
+.btn-green{background:var(--green)}
+.btn-dark{background:#2b3540}
+.btn-ghost{background:transparent;color:#3d474f;border:2px solid var(--line);font-size:18px;min-height:56px}
+
+ul.checks{margin:0 0 8px;padding-left:1.15em}
+ul.checks li{margin-bottom:9px}
+
+/* ===== 着信 ===== */
+#s-incoming,#s-call{background:var(--call-bg);color:#fff;height:100%}
+.callwrap{
+  display:flex;flex-direction:column;justify-content:space-between;
+  min-height:100vh;padding:52px 22px 46px;
+}
+@media(min-width:520px){.callwrap{min-height:100%;height:100%}}
+.callerlabel{font-size:15px;color:#93a1b0;letter-spacing:.08em;margin-bottom:10px}
+.callernum{font-size:30px;font-weight:900;font-family:var(--num);letter-spacing:.02em}
+.callerwarn{margin-top:14px;font-size:15px;color:#93a1b0}
+.ringing{font-size:16px;color:#93a1b0;margin-top:26px}
+.ringing span{animation:blink 1.4s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+
+.answer{
+  width:104px;height:104px;border-radius:50%;border:0;background:var(--green);
+  color:#fff;font-family:inherit;font-size:17px;font-weight:900;cursor:pointer;
+  margin:0 auto;display:block;box-shadow:0 0 0 0 rgba(22,160,90,.55);
+  animation:pulse 1.9s infinite;
+}
+@keyframes pulse{
+  0%{box-shadow:0 0 0 0 rgba(22,160,90,.55)}
+  70%{box-shadow:0 0 0 26px rgba(22,160,90,0)}
+  100%{box-shadow:0 0 0 0 rgba(22,160,90,0)}
+}
+
+/* ===== 通話中 ===== */
+.callhead{display:flex;justify-content:space-between;align-items:flex-start}
+.timer{font-family:var(--num);font-size:44px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:.02em}
+.who{font-size:15px;color:#93a1b0;margin-top:2px}
+.quit{background:none;border:1px solid #3c4753;color:#93a1b0;border-radius:9px;font-family:inherit;font-size:13px;padding:7px 11px;cursor:pointer}
+.subs{
+  flex:1;display:flex;align-items:center;
+  font-size:19px;line-height:1.85;color:#dbe3ea;padding:24px 0;
+}
+.subs em{font-style:normal;color:#7f8d9b;font-size:15px;display:block;margin-bottom:6px}
+.noticebtn{
+  width:100%;border:0;border-radius:16px;background:var(--amber);color:var(--amber-ink);
+  font-family:inherit;font-size:27px;font-weight:900;padding:26px 12px;cursor:pointer;min-height:104px;
+}
+.noticebtn.done{background:#3a4450;color:#93a1b0;font-size:19px;min-height:72px;padding:18px}
+.hangup{
+  width:100%;border:0;border-radius:16px;background:var(--red);color:#fff;
+  font-family:inherit;font-size:22px;font-weight:900;padding:20px;margin-top:12px;cursor:pointer;min-height:74px;
+}
+
+/* ===== 結果 ===== */
+.verdict{font-size:23px;font-weight:900;line-height:1.5;margin:0 0 18px}
+.bar{position:relative;height:56px;background:#dde1e6;border-radius:8px;overflow:hidden;margin:22px 0 8px}
+.bar .gap{position:absolute;top:0;bottom:0;background:rgba(220,47,38,.85)}
+.bar .mark{position:absolute;top:0;bottom:0;width:5px;background:var(--amber)}
+.barkey{display:flex;justify-content:space-between;font-size:13px;color:#5b6670;margin-bottom:22px}
+.stat{background:#fff;border:2px solid var(--line);border-radius:12px;padding:16px 18px;margin:0 0 12px}
+.stat b{display:block;font-family:var(--num);font-size:34px;font-weight:700;line-height:1.2}
+.stat span{font-size:15px;color:#5b6670}
+.stat.hot{border-color:var(--red)}
+.stat.hot b{color:var(--red)}
+
+.line{border-top:1px solid var(--line);padding:15px 0}
+.line .meta{font-size:13px;color:var(--muted);font-family:var(--num)}
+.line .say{margin:3px 0 0}
+.line.you{background:#fff8ea;border-left:5px solid var(--amber);padding-left:12px;margin-left:-12px}
+.youtag{display:inline-block;background:var(--amber);color:var(--amber-ink);font-size:12px;font-weight:900;border-radius:5px;padding:2px 8px;margin-top:8px}
+.flag{margin-top:10px;border-radius:10px;padding:12px 14px;font-size:15px;line-height:1.7}
+.f-small{background:#eef1f4;border-left:5px solid #9aa6b2}
+.f-mid{background:#fdf3e2;border-left:5px solid var(--amber)}
+.f-max{background:#fdeceb;border-left:5px solid var(--red)}
+.flag b{display:block;font-size:13px;letter-spacing:.1em;margin-bottom:3px}
+
+.card{background:var(--ink);color:#fff;border-radius:14px;padding:20px 20px 8px;margin:14px 0 0}
+.card h3{margin:0 0 12px;font-size:17px;letter-spacing:.1em;color:#93a1b0;font-weight:900}
+.card ol{margin:0;padding-left:1.3em}
+.card li{margin-bottom:14px;font-size:18px;font-weight:700;line-height:1.6}
+
+/* ===== 集計 ===== */
+.chart{display:flex;align-items:flex-end;gap:3px;height:170px;border-bottom:2px solid var(--ink);margin:20px 0 4px}
+.chart .col{flex:1;background:#b9c2cb;border-radius:3px 3px 0 0;min-height:2px;position:relative}
+.chart .col.red{background:var(--red)}
+.xkey{display:flex;gap:3px;font-size:10px;color:var(--muted);font-family:var(--num)}
+.xkey div{flex:1;text-align:center}
+textarea{width:100%;font-family:var(--num);font-size:18px;padding:12px;border:2px solid var(--line);border-radius:10px;min-height:96px}
+.tiny{background:none;border:0;color:#5b6670;font-family:inherit;font-size:15px;text-decoration:underline;cursor:pointer;padding:12px 0;display:block;margin:24px auto 0}
+
+@media(prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+<div id="handset">
+
+<!-- ========== 準備 ========== -->
+<section class="screen on" id="s-setup"><div class="pad">
+  <p class="eyebrow">あやしい電話 体験プログラム 第1回</p>
+  <h1>警察官を騙る電話</h1>
+  <p class="lead">これから、実際にあった手口をもとにした電話がかかってきます。<br>約3分です。</p>
+
+  <h2>やること</h2>
+  <ul class="checks">
+    <li>電話に出て、話を聞いてください。</li>
+    <li>「あれ、変だな」と思ったら、その瞬間に大きなボタンを押してください。何度も押す必要はありません。</li>
+    <li>切りたくなったら、いつでも切ってかまいません。</li>
+  </ul>
+  <p class="note">これは訓練です。お金の話も、逮捕の話も、すべて作りごとです。<br>気分が悪くなったら、画面右上の「やめる」でいつでも中止できます。</p>
+
+  <h2>耳もとで聞いてください</h2>
+  <p class="note">イヤホンかヘッドホンを使ってください。電話の怖さは、声が耳もとに入ってくるところにあります。まわりの音が聞こえていると、その感じが出ません。</p>
+
+  <label class="note" for="nameInput" style="display:block;margin-top:22px;font-weight:700;color:var(--ink)">お名前（名字だけ・入れなくても大丈夫です）</label>
+  <input id="nameInput" type="text" placeholder="例：鈴木" autocomplete="off"
+    style="width:100%;font-family:inherit;font-size:20px;padding:14px;border:2px solid var(--line);border-radius:10px;margin-top:8px">
+  <p class="note" style="margin-top:8px">入れると、相手があなたの名前を呼びます。名前は端末の外に出ません。</p>
+
+  <button class="btn btn-ghost" id="btnTest">音が出るか試す</button>
+  <p class="note" id="testMsg" style="min-height:1.7em;margin-top:8px"></p>
+
+  <button class="btn btn-green" id="btnStart">電話を待つ</button>
+  <button class="tiny" id="toFac">進行役の集計画面</button>
+</div></section>
+
+<!-- ========== 着信 ========== -->
+<section class="screen" id="s-incoming"><div class="callwrap">
+  <div>
+    <p class="callerlabel">着信</p>
+    <p class="callernum">+1 (241) 555&#8209;0163</p>
+    <p class="callerwarn">発信地域：不明 ／ 登録なし</p>
+    <p class="ringing"><span>■</span> 呼び出し中</p>
+  </div>
+  <div>
+    <button class="answer" id="btnAnswer">応答する</button>
+  </div>
+</div></section>
+
+<!-- ========== 通話中 ========== -->
+<section class="screen" id="s-call"><div class="callwrap">
+  <div class="callhead">
+    <div>
+      <div class="timer" id="timer">0:00</div>
+      <div class="who" id="who">通話中</div>
+    </div>
+    <button class="quit" id="btnQuit">やめる</button>
+  </div>
+  <div class="subs" id="subs"></div>
+  <div>
+    <button class="noticebtn" id="btnNotice">あ、変だ</button>
+    <button class="hangup" id="btnHangup">電話を切る</button>
+  </div>
+</div></section>
+
+<!-- ========== 結果 ========== -->
+<section class="screen" id="s-result"><div class="pad">
+  <p class="eyebrow">結果</p>
+  <p class="verdict" id="verdict"></p>
+
+  <div class="bar" id="bar">
+    <div class="gap" id="barGap" style="display:none"></div>
+    <div class="mark" id="barMark" style="display:none"></div>
+  </div>
+  <div class="barkey"><span>電話が始まる</span><span id="barEnd">終わり</span></div>
+
+  <div id="stats"></div>
+
+  <h2>進行役に伝える番号</h2>
+  <div class="stat"><b id="codeOut">－</b><span>「変だ」と思ったのが、何番目の発言だったか</span></div>
+
+  <h2>全部の会話と、危ないところ</h2>
+  <p class="note">赤い印がついているところは、それだけで詐欺と判断してよい発言です。</p>
+  <div id="lines"></div>
+
+  <div class="card">
+    <h3>切り札 ／ 言ってよい言葉</h3>
+    <ol>
+      <li>「一度切って、こちらからかけ直します」</li>
+      <li>「家族に確認してから、お返事します」</li>
+      <li>「番号を教えてください。あとで調べてかけます」</li>
+      <li>（何も言わずに切る）</li>
+    </ol>
+  </div>
+  <p class="note" style="margin-top:16px"><b>かけ直すときは、相手が言った番号にかけないでください。</b>自分の手帳、通帳、区の広報に載っている番号にかけます。警察の相談は <b>#9110</b> です。</p>
+
+  <button class="btn btn-dark" id="btnAgain">もう一度はじめから</button>
+</div></section>
+
+<!-- ========== 集計（進行役） ========== -->
+<section class="screen" id="s-fac"><div class="pad">
+  <p class="eyebrow">進行役</p>
+  <h1>気づいた時点の集計</h1>
+  <p class="note">参加者が読み上げた番号を、そのまま入れてください。区切りは何でもかまいません（3 5 2 9）。切らずに最後まで聞いた人は 0 と入れてください。</p>
+  <textarea id="facIn" placeholder="3 5 2 9 4 12 0 6"></textarea>
+  <button class="btn btn-dark" id="btnCalc">集計する</button>
+  <div id="facOut"></div>
+  <button class="tiny" id="toSetup">体験画面に戻る</button>
+</div></section>
+
+</div>
+
+<script>
+"use strict";
+
+/* ============================================================
+   台本：警察官騙り（前段＝通信会社の未納料金、後段＝警察官）
+   {N} は参加者の名字に置き換わります。
+   flag.level: small / mid / max
+   ============================================================ */
+var SCRIPT = [
+ {sp:"auto", who:"自動音声",   text:"こちらはNTTファイナンスです。お客様のご契約に、未納の料金がございます。担当者におつなぎしますので、そのままお待ちください。",
+  flag:{level:"small", why:"自動音声から人につなぐのは、詐欺の入口の典型です。名乗った会社が本当かどうかは、まだ何も確かめられていません。"}},
+
+ {sp:"a", who:"男性（田村と名乗る）", text:"お待たせしました。NTTファイナンス、カスタマーサポートの田村と申します。ご本人確認のため、お名前をフルネームでお願いできますか。",
+  flag:{level:"small", why:"かけてきた側が本人確認を求めるのは逆です。名乗るべきは、かけてきた相手のほうです。"}},
+
+ {sp:"a", who:"男性（田村と名乗る）", text:"ありがとうございます。{N}のお名前で、東京都内に契約された回線がございまして、こちらの利用料金が三か月分、未納となっております。",
+  flag:null},
+
+ {sp:"a", who:"男性（田村と名乗る）", text:"ご記憶がない。……そうしますと、{N}の個人情報が第三者に使われている可能性がございます。これは犯罪の被害になりますので、警察におつなぎいたします。",
+  flag:{level:"max", why:"民間の会社が、電話を警察に「つなぐ」ことはできません。ここで詐欺は確定します。警察に相談するなら、自分で電話をかけます。"}},
+
+ {sp:"a", who:"男性（田村と名乗る）", text:"少々お待ちください。ただいま、警視庁のほうへおつなぎします。",
+  flag:null},
+
+ {sp:"b", who:"男性（中村と名乗る）", text:"お電話代わりました。警視庁 生活安全課の中村と申します。階級は警部補です。",
+  flag:{level:"mid", why:"転送されてきた相手は、名乗っても確かめようがありません。本物であれば、いったん切って、自分で警察署の代表番号にかけ直しても何の問題もありません。"}},
+
+ {sp:"b", who:"中村（警察官を騙る）", text:"田村さんから伺いました。{N}、落ち着いて聞いてください。今、あなたの名前が使われた口座が、詐欺グループの資金の受け取りに使われています。",
+  flag:null},
+
+ {sp:"b", who:"中村（警察官を騙る）", text:"先週、都内でグループの一人を逮捕しました。その男が、取り調べであなたの名前を出しているんです。",
+  flag:{level:"mid", why:"捜査の内容を電話で一般の人に話すことはありません。怖がらせて、考える力を奪うための作り話です。"}},
+
+ {sp:"b", who:"中村（警察官を騙る）", text:"いえ、まだ容疑者ではありません。ただ、このままですと、あなたが加害者の側として扱われることになります。それを避けるために、私は電話しているんです。",
+  flag:{level:"mid", why:"「あなたを助けるために電話している」という形をつくって、味方だと思わせます。ここから相手の言うことを疑いにくくなります。"}},
+
+ {sp:"b", who:"中村（警察官を騙る）", text:"それから、これは捜査中の案件です。内容を外に漏らさないでください。ご家族にもです。捜査情報が漏れますと、共犯を疑われることになります。",
+  flag:{level:"max", why:"「家族にも言うな」と言われたら、それだけで詐欺です。本物の警察が、家族に相談することを止めることはありません。相談させないことが、相手のいちばんの目的です。"}},
+
+ {sp:"b", who:"中村（警察官を騙る）", text:"今、おひとりですか。ご家族は何時ごろお戻りになりますか。",
+  flag:{level:"max", why:"在宅の状況と家族構成を聞き出しています。詐欺だけでなく、強盗の下見に使われることもあります。答えてはいけません。"}},
+
+ {sp:"b", who:"中村（警察官を騙る）", text:"では、私の身分を証明します。LINEはお使いですか。そちらに警察手帳と、逮捕状の写しをお送りします。",
+  flag:{level:"max", why:"警察がLINEやSNSで捜査の連絡をすることはありません。逮捕状を見せることもありません。画面に映る手帳も書類も、簡単に作れます。"}},
+
+ {sp:"b", who:"中村（警察官を騙る）", text:"こちらから公式のアカウントを送りますので、追加してください。以後の連絡は、そちらでいたします。",
+  flag:{level:"mid", why:"電話からLINEへ移させるのは、記録を相手の手の中に置き、いつでも連絡がつく状態にするためです。"}},
+
+ {sp:"b", who:"中村（警察官を騙る）", text:"{N}、あなたの潔白を証明するには、あなたの資産が犯罪に使われていないことを、こちらで確認する必要があります。",
+  flag:null},
+
+ {sp:"b", who:"中村（警察官を騙る）", text:"今、銀行にいくらお預けですか。定期預金も含めて、お願いします。",
+  flag:{level:"max", why:"警察が電話で預金額を尋ねることは、絶対にありません。"}},
+
+ {sp:"b", who:"中村（警察官を騙る）", text:"金融庁の監査用の口座をご用意します。そちらに一度お預け入れいただければ、犯罪に関係のない資金だと証明できます。確認が終わり次第、全額お返しします。",
+  flag:{level:"max", why:"そのような口座は存在しません。お金を移させるための、最後の作り話です。"}},
+
+ {sp:"b", who:"中村（警察官を騙る）", text:"今日中にお願いします。明日になりますと、あなたの口座が凍結されます。そうなると、生活のお金も引き出せなくなります。",
+  flag:{level:"max", why:"期限を切って急がせるのは、相談する時間を与えないためです。急がせてくる相手は、それだけで疑ってよいのです。"}},
+
+ {sp:"b", who:"中村（警察官を騙る）", text:"それから、銀行の窓口では「事業の資金です」とおっしゃってください。詐欺の話をしますと、手続きが止まってしまいますので。",
+  flag:{level:"max", why:"銀行で嘘をつけと言われたら、確実に詐欺です。銀行の窓口は、被害を止めるための最後の砦です。相手はそこを避けさせようとしています。"}},
+
+ {sp:"b", who:"中村（警察官を騙る）", text:"それと、この電話は切らないでください。捜査上、通話を保持する必要があります。移動中も、このままつないでおいてください。",
+  flag:{level:"max", why:"これが、電話が切れなくなる仕掛けそのものです。切らせない理由に、正当なものは一つもありません。"}},
+
+ {sp:"b", who:"中村（警察官を騙る）", text:"では、これから支度をして、銀行に向かってください。着いたら教えてください。……{N}、聞こえていますか。",
+  flag:null}
+];
+
+/* ==================== 状態 ==================== */
+var st = {
+  name:"", idx:-1, t0:0, tick:null,
+  noticeAt:null, noticeIdx:null,
+  endAt:null, endIdx:null, hungUp:false,
+  mode:"tts", speaking:false, aborted:false, timeouts:[]
+};
+
+var $ = function(id){ return document.getElementById(id); };
+
+function show(id){
+  var s = document.querySelectorAll(".screen");
+  for(var i=0;i<s.length;i++) s[i].classList.remove("on");
+  $(id).classList.add("on");
+  $(id).scrollTop = 0;
+}
+
+function honor(){ return st.name ? st.name + "さん" : "お客さま"; }
+function render(t){ return t.replace(/\{N\}/g, honor()); }
+
+/* ==================== 音声 ==================== */
+var jaVoiceA = null, jaVoiceB = null, voicesReady = false;
+
+function pickVoices(){
+  var vs = window.speechSynthesis ? speechSynthesis.getVoices() : [];
+  var ja = vs.filter(function(v){ return /ja/i.test(v.lang); });
+  if(ja.length){
+    jaVoiceA = ja[0];
+    jaVoiceB = ja.length > 1 ? ja[1] : ja[0];
+    voicesReady = true;
+  }
+}
+if(window.speechSynthesis){
+  pickVoices();
+  speechSynthesis.onvoiceschanged = pickVoices;
+}
+
+function speak(text, sp, onEnd){
+  // 音声合成が使えない環境では、文字数から時間を見積もって進める
+  if(!window.speechSynthesis || !voicesReady){
+    var ms = text.length * 135 + 700;
+    st.timeouts.push(setTimeout(onEnd, ms));
+    return;
+  }
+  var u = new SpeechSynthesisUtterance(text);
+  u.lang = "ja-JP";
+  if(sp === "auto"){ u.voice = jaVoiceA; u.rate = 0.98; u.pitch = 1.15; }
+  else if(sp === "a"){ u.voice = jaVoiceA; u.rate = 1.0;  u.pitch = 1.0; }
+  else { u.voice = jaVoiceB; u.rate = 0.94; u.pitch = 0.82; }
+  u.onend = function(){ if(!st.aborted) onEnd(); };
+  u.onerror = function(){ if(!st.aborted) onEnd(); };
+  speechSynthesis.speak(u);
+}
+
+function stopAudio(){
+  st.aborted = true;
+  if(window.speechSynthesis) speechSynthesis.cancel();
+  for(var i=0;i<st.timeouts.length;i++) clearTimeout(st.timeouts[i]);
+  st.timeouts = [];
+  if(st.tick){ clearInterval(st.tick); st.tick = null; }
+}
+
+/* ==================== 通話の進行 ==================== */
+function fmt(ms){
+  var s = Math.floor(ms/1000);
+  return Math.floor(s/60) + ":" + ("0" + (s%60)).slice(-2);
+}
+function elapsed(){ return Date.now() - st.t0; }
+
+function startCall(){
+  st.idx = -1; st.aborted = false;
+  st.noticeAt = null; st.noticeIdx = null;
+  st.endAt = null; st.endIdx = null; st.hungUp = false;
+  st.t0 = Date.now();
+
+  var nb = $("btnNotice");
+  nb.className = "noticebtn";
+  nb.textContent = "あ、変だ";
+  nb.disabled = false;
+
+  $("subs").textContent = "";
+  show("s-call");
+
+  st.tick = setInterval(function(){ $("timer").textContent = fmt(elapsed()); }, 250);
+  next();
+}
+
+function next(){
+  st.idx++;
+  if(st.idx >= SCRIPT.length){ finish(false); return; }
+  var l = SCRIPT[st.idx];
+  $("who").textContent = l.who;
+  $("subs").innerHTML = '<div><em>' + (st.idx+1) + ' / ' + SCRIPT.length + '</em>' +
+    '<span id="subtext"></span></div>';
+  $("subtext").textContent = "（声が流れています）";
+  speak(render(l.text), l.sp, next);
+}
+
+function finish(hungUp){
+  stopAudio();
+  st.hungUp = hungUp;
+  st.endAt = elapsed();
+  st.endIdx = Math.min(st.idx + 1, SCRIPT.length);
+  showResult();
+}
+
+/* ==================== 結果 ==================== */
+function showResult(){
+  var v = $("verdict"), stats = $("stats");
+  var gapMs = (st.noticeAt !== null) ? (st.endAt - st.noticeAt) : null;
+  var gapSec = gapMs !== null ? Math.round(gapMs/1000) : null;
+
+  if(st.noticeAt === null && !st.hungUp){
+    v.textContent = "最後まで聞きました。「変だ」を押さないまま、電話は終わりました。";
+  } else if(st.noticeAt === null && st.hungUp){
+    v.textContent = st.endIdx + "番目の発言で、電話を切りました。";
+  } else if(st.hungUp){
+    v.textContent = st.noticeIdx + "番目の発言で気づいて、" + st.endIdx + "番目で切りました。";
+  } else {
+    v.textContent = st.noticeIdx + "番目の発言で気づきました。それでも、電話は最後まで続きました。";
+  }
+
+  // 帯グラフ
+  var total = st.endAt || 1;
+  var mark = $("barMark"), gap = $("barGap");
+  if(st.noticeAt !== null){
+    var pct = Math.max(0, Math.min(100, st.noticeAt/total*100));
+    mark.style.left = pct + "%"; mark.style.display = "block";
+    gap.style.left = pct + "%"; gap.style.width = (100-pct) + "%"; gap.style.display = "block";
+  } else {
+    mark.style.display = "none"; gap.style.display = "none";
+  }
+  $("barEnd").textContent = fmt(st.endAt) + " で終了";
+
+  // 数字
+  var h = "";
+  if(gapSec !== null){
+    h += '<div class="stat hot"><b>' + gapSec + ' 秒</b><span>「変だ」と思ってから、電話を続けていた時間</span></div>';
+  }
+  h += '<div class="stat"><b>' + fmt(st.endAt) + '</b><span>通話の長さ</span></div>';
+  if(gapSec !== null && gapSec > 20){
+    h += '<p class="note">おかしいと気づいてから' + gapSec + '秒。ここが、この体験でいちばん大事な数字です。' +
+         '気づく力はあります。足りないのは、気づいたあとに切る手だてです。</p>';
+  } else if(gapSec !== null){
+    h += '<p class="note">気づいてすぐに切れました。この速さが、そのまま身を守る力になります。</p>';
+  } else if(!st.hungUp){
+    h += '<p class="note">押せなかったことを、気にする必要はありません。相手は毎日これを繰り返している話の専門家です。' +
+         'まず、この電話のどこが危なかったのかを、下で確かめてください。</p>';
+  }
+  stats.innerHTML = h;
+
+  $("codeOut").textContent = st.noticeIdx !== null ? st.noticeIdx : "0";
+
+  // 全文と赤旗
+  var out = "";
+  for(var i=0;i<SCRIPT.length;i++){
+    var l = SCRIPT[i];
+    var you = (st.noticeIdx === i+1);
+    out += '<div class="line' + (you ? " you" : "") + '">';
+    out += '<div class="meta">' + (i+1) + '　' + l.who + '</div>';
+    out += '<p class="say">「' + render(l.text) + '」</p>';
+    if(you) out += '<span class="youtag">ここで気づいた</span>';
+    if(l.flag){
+      var label = l.flag.level === "max" ? "これだけで詐欺と判断してよい"
+                : l.flag.level === "mid" ? "危ないところ" : "小さな違和感";
+      out += '<div class="flag f-' + l.flag.level + '"><b>' + label + '</b>' + l.flag.why + '</div>';
+    }
+    out += '</div>';
+  }
+  $("lines").innerHTML = out;
+
+  show("s-result");
+}
+
+/* ==================== 集計 ==================== */
+function calc(){
+  var raw = $("facIn").value.match(/\d+/g) || [];
+  if(!raw.length){ $("facOut").innerHTML = '<p class="note">番号がまだ入っていません。</p>'; return; }
+  var nums = raw.map(Number).filter(function(n){ return n >= 0 && n <= SCRIPT.length; });
+  var counts = new Array(SCRIPT.length + 1).fill(0);
+  nums.forEach(function(n){ counts[n]++; });
+
+  var noticed = nums.filter(function(n){ return n > 0; });
+  var avg = noticed.length ? (noticed.reduce(function(a,b){return a+b;},0)/noticed.length) : 0;
+  var max = Math.max.apply(null, counts.slice(1));
+
+  var bars = "", keys = "";
+  for(var i=1;i<=SCRIPT.length;i++){
+    var hgt = max ? Math.round(counts[i]/max*100) : 0;
+    var isMax = SCRIPT[i-1].flag && SCRIPT[i-1].flag.level === "max";
+    bars += '<div class="col' + (isMax ? " red" : "") + '" style="height:' + Math.max(hgt,2) + '%" title="' + i + '番目：' + counts[i] + '人"></div>';
+    keys += '<div>' + (i % 2 === 1 ? i : "") + '</div>';
+  }
+  $("facOut").innerHTML =
+    '<div class="chart">' + bars + '</div><div class="xkey">' + keys + '</div>' +
+    '<p class="note" style="margin-top:14px">赤い柱は「それだけで詐欺と判断してよい」発言の位置です。</p>' +
+    '<div class="stat"><b>' + (avg ? avg.toFixed(1) : "－") + '</b><span>平均して、何番目の発言で気づいたか</span></div>' +
+    '<div class="stat hot"><b>' + (nums.length - noticed.length) + ' 人</b><span>最後まで気づかずに聞いた人</span></div>' +
+    '<p class="note"><b>問いかけの例</b>：これだけ早く気づいていたのに、なぜ切れなかったのでしょうか。<br>' +
+    '切るのをためらわせたのは、相手のどの言葉だったと思いますか。</p>';
+}
+
+/* ==================== 画面の配線 ==================== */
+$("btnTest").addEventListener("click", function(){
+  var m = $("testMsg");
+  if(!window.speechSynthesis){ m.textContent = "この端末では音声が出ません。文字で進みます。"; return; }
+  pickVoices();
+  if(!voicesReady){ m.textContent = "日本語の音声が見つかりませんでした。文字で進みます。"; return; }
+  m.textContent = "音が聞こえましたか。聞こえないときは、音量とイヤホンを確かめてください。";
+  var u = new SpeechSynthesisUtterance("音の大きさを確かめています。この声がはっきり聞こえる大きさにしてください。");
+  u.lang = "ja-JP"; u.voice = jaVoiceA;
+  speechSynthesis.speak(u);
+});
+
+$("btnStart").addEventListener("click", function(){
+  st.name = $("nameInput").value.trim().replace(/さん$/,"");
+  show("s-incoming");
+});
+
+$("btnAnswer").addEventListener("click", startCall);
+
+$("btnNotice").addEventListener("click", function(){
+  if(st.noticeAt !== null) return;
+  st.noticeAt = elapsed();
+  st.noticeIdx = st.idx + 1;
+  var b = $("btnNotice");
+  b.className = "noticebtn done";
+  b.textContent = "記録しました（" + st.noticeIdx + "番目）";
+  b.disabled = true;
+});
+
+$("btnHangup").addEventListener("click", function(){ finish(true); });
+
+$("btnQuit").addEventListener("click", function(){
+  stopAudio();
+  show("s-setup");
+});
+
+$("btnAgain").addEventListener("click", function(){ show("s-setup"); });
+$("toFac").addEventListener("click", function(){ show("s-fac"); });
+$("toSetup").addEventListener("click", function(){ show("s-setup"); });
+$("btnCalc").addEventListener("click", calc);
+
+window.addEventListener("pagehide", stopAudio);
+</script>
+</body>
+</html>
