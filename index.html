@@ -107,6 +107,17 @@ ul.checks li{margin-bottom:9px}
   font-size:19px;line-height:1.85;color:#dbe3ea;padding:24px 0;
 }
 .subs em{font-style:normal;color:#7f8d9b;font-size:15px;display:block;margin-bottom:6px}
+.turn{
+  border:2px solid var(--amber);border-radius:14px;padding:20px 18px;
+  background:rgba(214,158,46,.10);color:#f2e2c2;
+}
+.turn b{display:block;font-size:22px;color:var(--amber);margin-bottom:8px}
+.turn .ex{display:block;margin-top:10px;font-size:16px;color:#c3ccd4}
+.holding{color:#93a1b0}
+.holding b{display:block;font-size:22px;color:#dbe3ea;margin-bottom:8px}
+.holddots span{animation:blink 1.4s infinite}
+.holddots span:nth-child(2){animation-delay:.25s}
+.holddots span:nth-child(3){animation-delay:.5s}
 .noticebtn{
   width:100%;border:0;border-radius:16px;background:var(--amber);color:var(--amber-ink);
   font-family:inherit;font-size:27px;font-weight:900;padding:26px 12px;cursor:pointer;min-height:104px;
@@ -282,7 +293,7 @@ var SCRIPT = [
  {sp:"a", who:"男性（田村と名乗る）", text:"お待たせしました。NTTファイナンス、カスタマーサポートの田村と申します。ご本人確認のため、お名前をフルネームでお願いできますか。",
   flag:{level:"small", why:"かけてきた側が本人確認を求めるのは逆です。名乗るべきは、かけてきた相手のほうです。"}},
 
- {sp:"a", who:"男性（田村と名乗る）", text:"ありがとうございます。{N}のお名前で、東京都内に契約された回線がございまして、こちらの利用料金が三か月分、未納となっております。",
+ {sp:"a", who:"男性（田村と名乗る）", text:"{K}{N}のお名前で、東京都内に契約された回線がございまして、こちらの利用料金が三か月分、未納となっております。",
   flag:null},
 
  {sp:"a", who:"男性（田村と名乗る）", text:"ご記憶がない。……そうしますと、{N}の個人情報が第三者に使われている可能性がございます。これは犯罪の被害になりますので、警察におつなぎいたします。",
@@ -337,12 +348,28 @@ var SCRIPT = [
   flag:null}
 ];
 
+/* ============================================================
+   幕間（まくあい）：発言番号には数えない「間（ま）」
+   キー = その番号の発言が終わったあとに入る（0 から数えた添字）
+     type "you"  … 参加者が声に出して答える番
+     type "hold" … 保留。掛け手が入れ替わるまでの待ち時間
+   ms を変えれば長さを調整できます。
+   ============================================================ */
+var INTERLUDE = {
+  1: {type:"you",  label:"あなたが答える番です",
+      text:"声に出して、お名前を答えてください。",
+      ex:"例：「{S}です」", ms:5000},
+
+  4: {type:"hold", label:"保留",
+      text:"転送しています", ms:12000}
+};
+
 /* ==================== 状態 ==================== */
 var st = {
   name:"", idx:-1, t0:0, tick:null,
   noticeAt:null, noticeIdx:null,
   endAt:null, endIdx:null, hungUp:false,
-  mode:"tts", speaking:false, aborted:false, timeouts:[]
+  mode:"tts", speaking:false, aborted:false, timeouts:[], audioEl:null
 };
 
 var $ = function(id){ return document.getElementById(id); };
@@ -355,45 +382,232 @@ function show(id){
 }
 
 function honor(){ return st.name ? st.name + "さん" : "お客さま"; }
-function render(t){ return t.replace(/\{N\}/g, honor()); }
 
-/* ==================== 音声 ==================== */
-var jaVoiceA = null, jaVoiceB = null, voicesReady = false;
+// {K} = 名前の復唱。名前を入れていない人には復唱しない
+function kakunin(){
+  return st.name ? (st.name + "さんですね。ありがとうございます。") : "ありがとうございます。";
+}
+function render(t){
+  return t.replace(/\{K\}/g, kakunin()).replace(/\{N\}/g, honor());
+}
+
+/* ============================================================
+   録音音声を使う場合（合成音より自然です）
+   audio/01.mp3 〜 audio/20.mp3 を置いて、下を true にしてください。
+   番号は台本の発言番号と同じです。ファイルが無い発言は合成音になります。
+   ============================================================ */
+var USE_RECORDED = false;
+var RECORDED_DIR = "audio/";
+
+/* ==================== 合成音声 ==================== */
+var voiceHumanA = null, voiceHumanB = null, voiceRobot = null, voicesReady = false;
+
+/* 声の自然さを点数化して選ぶ。
+   同じ「日本語」でも、Nanami / Keita / Google などのニューラル音声と、
+   Haruka / Ayumi など古い機械音声では、聞こえ方がまるで違います。 */
+function voiceScore(v){
+  var n = (v.name || "") + " " + (v.voiceURI || "");
+  var s = 10;
+  if(/natural|neural|nanami|keita|masaru|shiori|daichi|mayu/i.test(n)) s += 100;
+  if(/online/i.test(n)) s += 40;
+  if(/google/i.test(n)) s += 60;
+  if(/kyoko|otoya|o-ren|hattori|siri/i.test(n)) s += 50;
+  if(v.localService === false) s += 25;
+  if(/haruka|ayumi|ichiro|sayaka/i.test(n)) s -= 20;
+  return s;
+}
 
 function pickVoices(){
   var vs = window.speechSynthesis ? speechSynthesis.getVoices() : [];
   var ja = vs.filter(function(v){ return /ja/i.test(v.lang); });
-  if(ja.length){
-    jaVoiceA = ja[0];
-    jaVoiceB = ja.length > 1 ? ja[1] : ja[0];
-    voicesReady = true;
-  }
+  if(!ja.length) return;
+  ja.sort(function(a,b){ return voiceScore(b) - voiceScore(a); });
+
+  voiceHumanA = ja[0];                       // いちばん自然な声 → 田村（前段）
+  voiceHumanB = ja.length > 1 ? ja[1] : ja[0]; // 次に自然な声 → 中村（警察官役）
+  voiceRobot  = ja[ja.length - 1];            // いちばん機械的な声 → 冒頭の自動音声
+  voicesReady = true;
 }
 if(window.speechSynthesis){
   pickVoices();
   speechSynthesis.onvoiceschanged = pickVoices;
 }
 
-function speak(text, sp, onEnd){
+/* 合成音が読み間違える語だけ、読みを直す（画面の字幕はもとの表記のまま） */
+var YOMI = [
+  ["NTTファイナンス", "エヌティーティー ファイナンス"],
+  ["LINE", "ライン"],
+  ["三か月分", "サンカゲツブン"],
+  ["第三者", "ダイサンシャ"],
+  ["生活安全課", "セイカツアンゼンカ"],
+  ["警部補", "ケイブホ"]
+];
+function yomi(t){
+  for(var i=0;i<YOMI.length;i++) t = t.split(YOMI[i][0]).join(YOMI[i][1]);
+  return t;
+}
+
+/* 長い文を句読点で切る。
+   ・人は一息では話しません。切って読ませると、ぐっと電話らしくなります。
+   ・Chrome には長い文の途中で音声が止まる不具合があり、その回避にもなります。 */
+function splitJa(text){
+  var out = [], buf = "";
+  for(var i=0;i<text.length;i++){
+    buf += text.charAt(i);
+    if("。、？！".indexOf(text.charAt(i)) >= 0 && buf.length >= 6){ out.push(buf); buf = ""; }
+  }
+  if(buf.replace(/\s/g,"")) out.push(buf);
+  return out.length ? out : [text];
+}
+function pauseAfter(chunk){
+  var last = chunk.charAt(chunk.length - 1);
+  if(last === "。") return 430;
+  if(last === "？" || last === "！") return 480;
+  if(last === "、") return 190;
+  return 260;
+}
+
+function voiceFor(sp){
+  if(sp === "auto") return voiceRobot;
+  if(sp === "a")    return voiceHumanA;
+  return voiceHumanB;
+}
+function toneFor(sp){
+  if(sp === "auto") return {rate:0.95, pitch:1.12};  // 機械的でよい
+  if(sp === "a")    return {rate:0.97, pitch:1.02};  // 丁寧・やや高め
+  return {rate:0.92, pitch:0.86};                    // 落ち着いた低い声
+}
+
+/* 1発言を読み上げる。録音があればそちらを優先 */
+function speak(text, sp, onEnd, lineNo){
+  if(USE_RECORDED && lineNo){
+    var file = RECORDED_DIR + ("0" + lineNo).slice(-2) + ".mp3";
+    var a = new Audio(file);
+    st.audioEl = a;
+    var fell = false;
+    a.onended = function(){ if(!st.aborted) onEnd(); };
+    a.onerror = function(){ if(!fell){ fell = true; ttsSpeak(text, sp, onEnd); } };
+    a.play()["catch"](function(){ if(!fell){ fell = true; ttsSpeak(text, sp, onEnd); } });
+    return;
+  }
+  ttsSpeak(text, sp, onEnd);
+}
+
+function ttsSpeak(text, sp, onEnd){
   // 音声合成が使えない環境では、文字数から時間を見積もって進める
   if(!window.speechSynthesis || !voicesReady){
     var ms = text.length * 135 + 700;
     st.timeouts.push(setTimeout(onEnd, ms));
     return;
   }
-  var u = new SpeechSynthesisUtterance(text);
-  u.lang = "ja-JP";
-  if(sp === "auto"){ u.voice = jaVoiceA; u.rate = 0.98; u.pitch = 1.15; }
-  else if(sp === "a"){ u.voice = jaVoiceA; u.rate = 1.0;  u.pitch = 1.0; }
-  else { u.voice = jaVoiceB; u.rate = 0.94; u.pitch = 0.82; }
-  u.onend = function(){ if(!st.aborted) onEnd(); };
-  u.onerror = function(){ if(!st.aborted) onEnd(); };
-  speechSynthesis.speak(u);
+  var parts = splitJa(text), i = 0, tone = toneFor(sp), v = voiceFor(sp);
+
+  function sayNext(){
+    if(st.aborted) return;
+    if(i >= parts.length){ onEnd(); return; }
+    var chunk = parts[i], gap = pauseAfter(chunk);
+    i++;
+    var u = new SpeechSynthesisUtterance(yomi(chunk));
+    u.lang = "ja-JP";
+    if(v) u.voice = v;
+    u.rate = tone.rate; u.pitch = tone.pitch; u.volume = 1;
+    u.onend   = function(){ if(!st.aborted) st.timeouts.push(setTimeout(sayNext, gap)); };
+    u.onerror = function(){ if(!st.aborted) st.timeouts.push(setTimeout(sayNext, gap)); };
+    speechSynthesis.speak(u);
+  }
+  sayNext();
+}
+
+/* ==================== 呼び出し音・保留音 ==================== */
+var AC = null, ringNodes = null, ringVib = null, holdNodes = null;
+
+/* 音を出す許可は「利用者が押した」ときにしか下りません。
+   だからボタンの中から呼びます。 */
+function audioCtx(){
+  try{
+    if(!AC){
+      var C = window.AudioContext || window.webkitAudioContext;
+      if(!C) return null;
+      AC = new C();
+    }
+    if(AC.state === "suspended") AC.resume();
+    return AC;
+  }catch(e){ return null; }
+}
+
+/* 日本の電話の呼び出し音：400Hz を 16Hz で震わせ、1秒鳴らして2秒休む */
+function startRing(){
+  stopRing();
+  var ac = audioCtx(); if(!ac) return;
+  try{
+    var osc  = ac.createOscillator(); osc.type = "sine"; osc.frequency.value = 400;
+    var lfo  = ac.createOscillator(); lfo.type = "sine"; lfo.frequency.value = 16;
+    var lfoG = ac.createGain(); lfoG.gain.value = 0.5;
+    var trem = ac.createGain(); trem.gain.value = 0.5;
+    var out  = ac.createGain(); out.gain.value = 0;
+
+    lfo.connect(lfoG); lfoG.connect(trem.gain);
+    osc.connect(trem); trem.connect(out); out.connect(ac.destination);
+    osc.start(); lfo.start();
+
+    var t = ac.currentTime + 0.15;
+    for(var i=0;i<60;i++){                    // 1秒鳴 → 2秒休 を3分ぶん予約
+      out.gain.setValueAtTime(0.20, t + i*3);
+      out.gain.setValueAtTime(0.00, t + i*3 + 1.0);
+    }
+    ringNodes = {osc:osc, lfo:lfo, out:out};
+  }catch(e){ ringNodes = null; }
+
+  if(navigator.vibrate){
+    try{
+      navigator.vibrate(1000);
+      ringVib = setInterval(function(){ try{ navigator.vibrate(1000); }catch(e){} }, 3000);
+    }catch(e){}
+  }
+}
+function stopRing(){
+  if(ringNodes){
+    try{ ringNodes.out.gain.cancelScheduledValues(0); ringNodes.out.gain.value = 0;
+         ringNodes.osc.stop(); ringNodes.lfo.stop(); }catch(e){}
+    ringNodes = null;
+  }
+  if(ringVib){ clearInterval(ringVib); ringVib = null; }
+  if(navigator.vibrate){ try{ navigator.vibrate(0); }catch(e){} }
+}
+
+/* 保留音：低めの二音を、ゆっくり繰り返す */
+function startHold(){
+  stopHold();
+  var ac = audioCtx(); if(!ac) return;
+  try{
+    var out = ac.createGain(); out.gain.value = 0; out.connect(ac.destination);
+    var osc = ac.createOscillator(); osc.type = "sine"; osc.connect(out); osc.start();
+    var t = ac.currentTime + 0.2;
+    for(var i=0;i<12;i++){                    // 2.5秒ごとに「ポーン、ポーン」
+      var s = t + i*2.5;
+      osc.frequency.setValueAtTime(784, s);
+      out.gain.setValueAtTime(0.10, s);
+      out.gain.setValueAtTime(0.00, s + 0.35);
+      osc.frequency.setValueAtTime(659, s + 0.45);
+      out.gain.setValueAtTime(0.10, s + 0.45);
+      out.gain.setValueAtTime(0.00, s + 0.85);
+    }
+    holdNodes = {osc:osc, out:out};
+  }catch(e){ holdNodes = null; }
+}
+function stopHold(){
+  if(holdNodes){
+    try{ holdNodes.out.gain.cancelScheduledValues(0); holdNodes.out.gain.value = 0;
+         holdNodes.osc.stop(); }catch(e){}
+    holdNodes = null;
+  }
 }
 
 function stopAudio(){
   st.aborted = true;
   if(window.speechSynthesis) speechSynthesis.cancel();
+  if(st.audioEl){ try{ st.audioEl.pause(); }catch(e){} st.audioEl = null; }
+  stopRing(); stopHold();
   for(var i=0;i<st.timeouts.length;i++) clearTimeout(st.timeouts[i]);
   st.timeouts = [];
   if(st.tick){ clearInterval(st.tick); st.tick = null; }
@@ -432,7 +646,40 @@ function next(){
   $("subs").innerHTML = '<div><em>' + (st.idx+1) + ' / ' + SCRIPT.length + '</em>' +
     '<span id="subtext"></span></div>';
   $("subtext").textContent = "（声が流れています）";
-  speak(render(l.text), l.sp, next);
+  speak(render(l.text), l.sp, afterLine, st.idx + 1);
+}
+
+/* 発言のあとに幕間があれば、それを挟んでから次へ */
+function afterLine(){
+  if(st.aborted) return;
+  var it = INTERLUDE[st.idx];
+  if(!it){ next(); return; }
+  runInterlude(it, next);
+}
+
+function runInterlude(it, done){
+  if(it.type === "hold"){
+    $("who").textContent = "保留中";
+    $("subs").innerHTML =
+      '<div class="holding"><b>' + it.text +
+      '<span class="holddots"><span>・</span><span>・</span><span>・</span></span></b>' +
+      'そのままお待ちください。</div>';
+    startHold();
+    st.timeouts.push(setTimeout(function(){
+      if(st.aborted) return;
+      stopHold(); done();
+    }, it.ms));
+    return;
+  }
+  // type: "you"
+  $("who").textContent = "あなたの番";
+  $("subs").innerHTML =
+    '<div class="turn"><b>' + it.label + '</b>' + it.text +
+    (it.ex ? '<span class="ex">' + it.ex.replace(/\{S\}/g, st.name || "鈴木") + '</span>' : '') + '</div>';
+  st.timeouts.push(setTimeout(function(){
+    if(st.aborted) return;
+    done();
+  }, it.ms));
 }
 
 function finish(hungUp){
@@ -542,21 +789,37 @@ function calc(){
 /* ==================== 画面の配線 ==================== */
 $("btnTest").addEventListener("click", function(){
   var m = $("testMsg");
-  if(!window.speechSynthesis){ m.textContent = "この端末では音声が出ません。文字で進みます。"; return; }
+  audioCtx();                       // ここで音を出す許可をもらっておく
+  startRing();
+  setTimeout(stopRing, 2200);       // 呼び出し音を1回だけ鳴らす
+
+  if(!window.speechSynthesis){
+    m.textContent = "呼び出し音が聞こえましたか。この端末では声は出ないので、文字で進みます。";
+    return;
+  }
   pickVoices();
-  if(!voicesReady){ m.textContent = "日本語の音声が見つかりませんでした。文字で進みます。"; return; }
-  m.textContent = "音が聞こえましたか。聞こえないときは、音量とイヤホンを確かめてください。";
-  var u = new SpeechSynthesisUtterance("音の大きさを確かめています。この声がはっきり聞こえる大きさにしてください。");
-  u.lang = "ja-JP"; u.voice = jaVoiceA;
-  speechSynthesis.speak(u);
+  if(!voicesReady){
+    m.textContent = "呼び出し音は鳴りますが、日本語の声が見つかりません。文字で進みます。";
+    return;
+  }
+  m.textContent = "呼び出し音と声が聞こえましたか。聞こえないときは、音量とイヤホンを確かめてください。";
+  st.aborted = false;
+  setTimeout(function(){
+    ttsSpeak("音の大きさを確かめています。この声が、はっきり聞こえる大きさにしてください。", "a", function(){});
+  }, 2400);
 });
 
 $("btnStart").addEventListener("click", function(){
   st.name = $("nameInput").value.trim().replace(/さん$/,"");
+  st.aborted = false;
   show("s-incoming");
+  startRing();                      // 押した瞬間なので、音を出せます
 });
 
-$("btnAnswer").addEventListener("click", startCall);
+$("btnAnswer").addEventListener("click", function(){
+  stopRing();
+  startCall();
+});
 
 $("btnNotice").addEventListener("click", function(){
   if(st.noticeAt !== null) return;
