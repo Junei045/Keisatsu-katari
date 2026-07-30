@@ -71,6 +71,25 @@ p{margin:0 0 14px}
 ul.checks{margin:0 0 8px;padding-left:1.15em}
 ul.checks li{margin-bottom:9px}
 
+/* ===== 声を選ぶ（進行役向け） ===== */
+.vcfg{margin-top:24px;border:2px solid var(--line);border-radius:12px;background:#fff;padding:0 16px}
+.vcfg summary{cursor:pointer;padding:15px 0;font-size:17px;font-weight:700;color:#3d474f}
+.vcfg[open] summary{border-bottom:1px solid var(--line);margin-bottom:12px}
+.vcfg .note{margin:0 0 14px}
+.vrow{margin-bottom:14px}
+.vrow label{display:block;font-size:15px;font-weight:700;margin-bottom:5px}
+.vpick{display:flex;gap:8px}
+.vpick select{
+  flex:1;min-width:0;font-family:inherit;font-size:16px;padding:11px;
+  border:2px solid var(--line);border-radius:9px;background:#fff;color:var(--ink);
+}
+.vplay{
+  flex:0 0 58px;border:2px solid var(--line);border-radius:9px;background:#eef2f5;
+  font-family:inherit;font-size:17px;color:#2b3540;cursor:pointer;
+}
+.vplay:hover{background:#e2e8ed}
+#vcfgMsg{min-height:1.6em}
+
 /* ===== 着信 ===== */
 #s-incoming,#s-call{background:var(--call-bg);color:#fff;height:100%}
 .callwrap{
@@ -195,6 +214,19 @@ textarea{width:100%;font-family:var(--num);font-size:18px;padding:12px;border:2p
     style="width:100%;font-family:inherit;font-size:20px;padding:14px;border:2px solid var(--line);border-radius:10px;margin-top:8px">
   <p class="note" style="margin-top:8px">入れると、相手があなたの名前を呼びます。名前は端末の外に出ません。</p>
 
+  <details class="vcfg" id="vcfg">
+    <summary>声を選ぶ（進行役の方だけ）</summary>
+    <p class="note">この端末に入っている声から、役ごとに選べます。▶ で聞き比べてください。選んだ声はこの端末に記録され、次回も同じ声になります。</p>
+    <div class="vrow"><label for="vSelA">田村（前段の男）</label>
+      <div class="vpick"><select id="vSelA"></select><button type="button" class="vplay" data-t="a">▶</button></div></div>
+    <div class="vrow"><label for="vSelB">中村（警察官を騙る）</label>
+      <div class="vpick"><select id="vSelB"></select><button type="button" class="vplay" data-t="b">▶</button></div></div>
+    <div class="vrow"><label for="vSelR">冒頭の自動音声</label>
+      <div class="vpick"><select id="vSelR"></select><button type="button" class="vplay" data-t="auto">▶</button></div></div>
+    <p class="note" id="vcfgMsg"></p>
+    <button type="button" class="btn btn-ghost" id="vReset" style="font-size:16px;min-height:46px">おすすめの組み合わせに戻す</button>
+  </details>
+
   <button class="btn btn-ghost" id="btnTest">音が出るか試す</button>
   <p class="note" id="testMsg" style="min-height:1.7em;margin-top:8px"></p>
 
@@ -245,7 +277,7 @@ textarea{width:100%;font-family:var(--num);font-size:18px;padding:12px;border:2p
   <div id="stats"></div>
 
   <h2>進行役に伝える番号</h2>
-  <div class="stat"><b id="codeOut">－</b><span>「変だ」と思ったのが、何番目の発言だったか</span></div>
+  <div class="stat"><b id="codeOut">－</b><span>気づいたのが、何番目の発言だったか（最後まで気づかなかったときだけ 0）</span></div>
 
   <h2>全部の会話と、危ないところ</h2>
   <p class="note">赤い印がついているところは、それだけで詐欺と判断してよい発言です。</p>
@@ -369,7 +401,8 @@ var st = {
   name:"", idx:-1, t0:0, tick:null,
   noticeAt:null, noticeIdx:null,
   endAt:null, endIdx:null, hungUp:false,
-  mode:"tts", speaking:false, aborted:false, timeouts:[], audioEl:null
+  mode:"tts", speaking:false, aborted:false, timeouts:[], audioEl:null, gen:0,
+  impliedNotice:false
 };
 
 var $ = function(id){ return document.getElementById(id); };
@@ -400,21 +433,50 @@ var USE_RECORDED = false;
 var RECORDED_DIR = "audio/";
 
 /* ==================== 合成音声 ==================== */
+var allJa = [];
 var voiceHumanA = null, voiceHumanB = null, voiceRobot = null, voicesReady = false;
 
-/* 声の自然さを点数化して選ぶ。
-   同じ「日本語」でも、Nanami / Keita / Google などのニューラル音声と、
-   Haruka / Ayumi など古い機械音声では、聞こえ方がまるで違います。 */
+/* 声の自然さを点数化する（これは初期値を決めるためだけのものです。
+   最終的には、進行役が「声を選ぶ」で指定した声が優先されます）
+
+   注意：日本語版の Windows / Edge では、声の名前が「七海」「圭太」のように
+   日本語で表示されます。ローマ字だけで探すと一致しないので、両方見ます。 */
 function voiceScore(v){
   var n = (v.name || "") + " " + (v.voiceURI || "");
   var s = 10;
-  if(/natural|neural|nanami|keita|masaru|shiori|daichi|mayu/i.test(n)) s += 100;
-  if(/online/i.test(n)) s += 40;
+  if(/natural|neural|ナチュラル|ニューラル|自然/i.test(n)) s += 100;
+  if(/nanami|keita|masaru|shiori|daichi|mayu/i.test(n)) s += 100;
+  if(/七海|圭太|大智|真由|詩織|勝/.test(n)) s += 100;        // 日本語表記
+  if(/online|オンライン/i.test(n)) s += 40;
   if(/google/i.test(n)) s += 60;
-  if(/kyoko|otoya|o-ren|hattori|siri/i.test(n)) s += 50;
+  if(/kyoko|otoya|o-ren|hattori|siri|京子|お鈴/i.test(n)) s += 50;
   if(v.localService === false) s += 25;
-  if(/haruka|ayumi|ichiro|sayaka/i.test(n)) s -= 20;
+  if(/haruka|ayumi|ichiro|sayaka|春香|亜由美|一郎|沙也加/i.test(n)) s -= 5;
   return s;
+}
+
+var LS_KEY = "keisatsu-katari.voices";
+function loadSaved(){
+  try{ return JSON.parse(localStorage.getItem(LS_KEY)) || {}; }catch(e){ return {}; }
+}
+function saveChoice(){
+  try{
+    localStorage.setItem(LS_KEY, JSON.stringify({
+      a: voiceHumanA ? voiceHumanA.name : "",
+      b: voiceHumanB ? voiceHumanB.name : "",
+      r: voiceRobot  ? voiceRobot.name  : ""
+    }));
+  }catch(e){}
+}
+function byName(n){
+  for(var i=0;i<allJa.length;i++) if(allJa[i].name === n) return allJa[i];
+  return null;
+}
+
+function defaultAssign(){
+  voiceHumanA = allJa[0];
+  voiceHumanB = allJa.length > 1 ? allJa[1] : allJa[0];
+  voiceRobot  = allJa[allJa.length - 1];
 }
 
 function pickVoices(){
@@ -422,15 +484,47 @@ function pickVoices(){
   var ja = vs.filter(function(v){ return /ja/i.test(v.lang); });
   if(!ja.length) return;
   ja.sort(function(a,b){ return voiceScore(b) - voiceScore(a); });
+  allJa = ja;
+  defaultAssign();
 
-  voiceHumanA = ja[0];                       // いちばん自然な声 → 田村（前段）
-  voiceHumanB = ja.length > 1 ? ja[1] : ja[0]; // 次に自然な声 → 中村（警察官役）
-  voiceRobot  = ja[ja.length - 1];            // いちばん機械的な声 → 冒頭の自動音声
+  // 前回選んだ声が残っていれば、それを使う
+  var s = loadSaved();
+  if(byName(s.a)) voiceHumanA = byName(s.a);
+  if(byName(s.b)) voiceHumanB = byName(s.b);
+  if(byName(s.r)) voiceRobot  = byName(s.r);
+
   voicesReady = true;
+  buildVoiceUI();
 }
 if(window.speechSynthesis){
   pickVoices();
   speechSynthesis.onvoiceschanged = pickVoices;
+}
+
+/* 選択欄をつくる */
+function buildVoiceUI(){
+  var box = $("vcfg"); if(!box) return;
+  var trio = [["vSelA", voiceHumanA], ["vSelB", voiceHumanB], ["vSelR", voiceRobot]];
+  for(var t=0;t<trio.length;t++){
+    var sel = $(trio[t][0]); if(!sel) continue;
+    var cur = trio[t][1] ? trio[t][1].name : "";
+    var h = "";
+    for(var i=0;i<allJa.length;i++){
+      var v = allJa[i];
+      h += '<option value="' + v.name.replace(/"/g,"&quot;") + '"' +
+           (v.name === cur ? " selected" : "") + '>' + v.name + '</option>';
+    }
+    sel.innerHTML = h;
+  }
+  $("vcfgMsg").textContent = "この端末には日本語の声が " + allJa.length + " 種類あります。";
+}
+
+function readSelects(){
+  var a = byName($("vSelA").value), b = byName($("vSelB").value), r = byName($("vSelR").value);
+  if(a) voiceHumanA = a;
+  if(b) voiceHumanB = b;
+  if(r) voiceRobot  = r;
+  saveChoice();
 }
 
 /* 合成音が読み間違える語だけ、読みを直す（画面の字幕はもとの表記のまま） */
@@ -501,9 +595,12 @@ function ttsSpeak(text, sp, onEnd){
     return;
   }
   var parts = splitJa(text), i = 0, tone = toneFor(sp), v = voiceFor(sp);
+  var myGen = st.gen;
+
+  function alive(){ return !st.aborted && myGen === st.gen; }
 
   function sayNext(){
-    if(st.aborted) return;
+    if(!alive()) return;
     if(i >= parts.length){ onEnd(); return; }
     var chunk = parts[i], gap = pauseAfter(chunk);
     i++;
@@ -511,8 +608,8 @@ function ttsSpeak(text, sp, onEnd){
     u.lang = "ja-JP";
     if(v) u.voice = v;
     u.rate = tone.rate; u.pitch = tone.pitch; u.volume = 1;
-    u.onend   = function(){ if(!st.aborted) st.timeouts.push(setTimeout(sayNext, gap)); };
-    u.onerror = function(){ if(!st.aborted) st.timeouts.push(setTimeout(sayNext, gap)); };
+    u.onend   = function(){ if(alive()) st.timeouts.push(setTimeout(sayNext, gap)); };
+    u.onerror = function(){ if(alive()) st.timeouts.push(setTimeout(sayNext, gap)); };
     speechSynthesis.speak(u);
   }
   sayNext();
@@ -605,6 +702,7 @@ function stopHold(){
 
 function stopAudio(){
   st.aborted = true;
+  st.gen++;                        // 前の読み上げの続きが復活しないようにする
   if(window.speechSynthesis) speechSynthesis.cancel();
   if(st.audioEl){ try{ st.audioEl.pause(); }catch(e){} st.audioEl = null; }
   stopRing(); stopHold();
@@ -622,7 +720,7 @@ function elapsed(){ return Date.now() - st.t0; }
 
 function startCall(){
   st.idx = -1; st.aborted = false;
-  st.noticeAt = null; st.noticeIdx = null;
+  st.noticeAt = null; st.noticeIdx = null; st.impliedNotice = false;
   st.endAt = null; st.endIdx = null; st.hungUp = false;
   st.t0 = Date.now();
 
@@ -687,6 +785,15 @@ function finish(hungUp){
   st.hungUp = hungUp;
   st.endAt = elapsed();
   st.endIdx = Math.min(st.idx + 1, SCRIPT.length);
+
+  /* 「あ、変だ」を押さずに切った人は、押す間もなく切ったということです。
+     切った行為そのものが「気づいた」しるしなので、その番号を使います。
+     ここを 0 のままにすると、いちばん正しく行動した人が 0 になってしまいます。 */
+  if(hungUp && st.noticeAt === null){
+    st.noticeAt = st.endAt;
+    st.noticeIdx = st.endIdx;
+    st.impliedNotice = true;
+  }
   showResult();
 }
 
@@ -696,10 +803,10 @@ function showResult(){
   var gapMs = (st.noticeAt !== null) ? (st.endAt - st.noticeAt) : null;
   var gapSec = gapMs !== null ? Math.round(gapMs/1000) : null;
 
-  if(st.noticeAt === null && !st.hungUp){
-    v.textContent = "最後まで聞きました。「変だ」を押さないまま、電話は終わりました。";
-  } else if(st.noticeAt === null && st.hungUp){
+  if(st.impliedNotice){
     v.textContent = st.endIdx + "番目の発言で、電話を切りました。";
+  } else if(st.noticeAt === null){
+    v.textContent = "最後まで聞きました。「変だ」を押さないまま、電話は終わりました。";
   } else if(st.hungUp){
     v.textContent = st.noticeIdx + "番目の発言で気づいて、" + st.endIdx + "番目で切りました。";
   } else {
@@ -724,7 +831,13 @@ function showResult(){
     h += '<div class="stat hot"><b>' + gapSec + ' 秒</b><span>「変だ」と思ってから、電話を続けていた時間</span></div>';
   }
   h += '<div class="stat"><b>' + fmt(st.endAt) + '</b><span>通話の長さ</span></div>';
-  if(gapSec !== null && gapSec > 20){
+  if(st.impliedNotice){
+    h += '<p class="note">「あ、変だ」を押さずに切りました。切った番号を、そのまま「気づいた番号」として扱います。' +
+         '本当の電話では、これがいちばん良い切り方です。</p>';
+  } else if(gapSec !== null && !st.hungUp){
+    h += '<p class="note">気づいてから' + gapSec + '秒、電話は続いていました。最後まで切れなかったことになります。' +
+         'ここが、この体験でいちばん大事なところです。気づく力はあります。足りないのは、気づいたあとに切る手だてです。</p>';
+  } else if(gapSec !== null && gapSec > 15){
     h += '<p class="note">おかしいと気づいてから' + gapSec + '秒。ここが、この体験でいちばん大事な数字です。' +
          '気づく力はあります。足りないのは、気づいたあとに切る手だてです。</p>';
   } else if(gapSec !== null){
@@ -786,6 +899,40 @@ function calc(){
     '切るのをためらわせたのは、相手のどの言葉だったと思いますか。</p>';
 }
 
+/* ==================== 声を選ぶ ==================== */
+var VSAMPLE = {
+  a:    "お待たせしました。ご本人確認のため、お名前をフルネームでお願いできますか。",
+  b:    "お電話代わりました。警視庁 生活安全課の中村と申します。",
+  auto: "こちらはエヌティーティー ファイナンスです。担当者におつなぎします。"
+};
+(function(){
+  var sels = ["vSelA","vSelB","vSelR"];
+  for(var i=0;i<sels.length;i++){
+    if(!$(sels[i])) continue;
+    $(sels[i]).addEventListener("change", function(){
+      readSelects();
+      $("vcfgMsg").textContent = "この声で進みます。";
+    });
+  }
+  var plays = document.querySelectorAll(".vplay");
+  for(var j=0;j<plays.length;j++){
+    plays[j].addEventListener("click", function(){
+      readSelects();
+      var t = this.getAttribute("data-t");
+      stopAudio();                 // 前の試聴が残っていたら止める
+      st.aborted = false;
+      ttsSpeak(VSAMPLE[t], t, function(){});
+    });
+  }
+  if($("vReset")){
+    $("vReset").addEventListener("click", function(){
+      try{ localStorage.removeItem(LS_KEY); }catch(e){}
+      if(allJa.length){ defaultAssign(); buildVoiceUI(); }
+      $("vcfgMsg").textContent = "おすすめの組み合わせに戻しました。";
+    });
+  }
+})();
+
 /* ==================== 画面の配線 ==================== */
 $("btnTest").addEventListener("click", function(){
   var m = $("testMsg");
@@ -811,6 +958,7 @@ $("btnTest").addEventListener("click", function(){
 
 $("btnStart").addEventListener("click", function(){
   st.name = $("nameInput").value.trim().replace(/さん$/,"");
+  stopAudio();                      // 試聴の残りを止める
   st.aborted = false;
   show("s-incoming");
   startRing();                      // 押した瞬間なので、音を出せます
