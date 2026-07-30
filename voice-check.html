@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>この端末の日本語音声を調べる</title>
+<style>
+:root{
+  --ink:#1b2228; --sub:#5b6670; --line:#d7dce1; --bg:#f4f6f8;
+  --green:#16a05a; --amber:#d69e2e; --red:#dc2f26;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;padding:28px 20px 60px;background:var(--bg);color:var(--ink);
+  font-family:"Hiragino Kaku Gothic ProN","Yu Gothic","Meiryo",system-ui,sans-serif;
+  line-height:1.8;
+}
+.wrap{max-width:760px;margin:0 auto}
+h1{font-size:26px;margin:0 0 6px;line-height:1.4}
+.lede{color:var(--sub);font-size:15px;margin:0 0 26px}
+h2{font-size:19px;margin:34px 0 12px;padding-bottom:7px;border-bottom:2px solid var(--line)}
+.note{font-size:14px;color:var(--sub)}
+
+.env{background:#fff;border:2px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:22px}
+.env div{font-size:15px}
+.env b{font-family:ui-monospace,monospace}
+
+.role{background:#fff;border:2px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:12px}
+.role .tag{display:inline-block;font-size:13px;font-weight:700;padding:3px 10px;border-radius:99px;
+  background:#e8edf2;color:#3d474f;margin-bottom:6px}
+.role .vname{font-size:17px;font-weight:700;word-break:break-all}
+
+table{width:100%;border-collapse:collapse;background:#fff;font-size:14px}
+th,td{border:1px solid var(--line);padding:9px 10px;text-align:left;vertical-align:top}
+th{background:#e8edf2;font-size:13px}
+td.n{font-family:ui-monospace,monospace;text-align:right;width:3.2em}
+td.sc{font-family:ui-monospace,monospace;text-align:right;width:4em;font-weight:700}
+tr.best td{background:#eaf7ef}
+tr.worst td{background:#fdf1f0}
+button.play{
+  font-family:inherit;font-size:14px;font-weight:700;padding:8px 14px;border-radius:9px;
+  border:2px solid var(--line);background:#fff;color:#2b3540;cursor:pointer;white-space:nowrap;
+}
+button.play:hover{background:#eef2f5}
+.big{
+  display:block;width:100%;border:0;border-radius:12px;background:#2b3540;color:#fff;
+  font-family:inherit;font-size:18px;font-weight:900;padding:16px;margin:18px 0 0;cursor:pointer;
+}
+.warn{border-left:5px solid var(--amber);background:#fdf6e7;padding:14px 16px;border-radius:8px;margin:16px 0;font-size:15px}
+.bad{border-left:5px solid var(--red);background:#fdf1f0;padding:14px 16px;border-radius:8px;margin:16px 0;font-size:15px}
+.ok{border-left:5px solid var(--green);background:#eaf7ef;padding:14px 16px;border-radius:8px;margin:16px 0;font-size:15px}
+code{background:#e8edf2;padding:1px 5px;border-radius:4px;font-size:.92em}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>この端末の日本語音声を調べる</h1>
+<p class="lede">「警察官騙り」体験プログラムの声が機械的に聞こえるとき、原因は端末に入っている音声そのものです。このページで、何が入っていて、どれが使われるかを確かめます。</p>
+
+<div class="env">
+  <div>ブラウザ：<b id="ua">－</b></div>
+  <div>日本語の音声：<b id="count">－</b></div>
+</div>
+
+<h2>本番で使われる声</h2>
+<p class="note">index.html は、自然さの点数が高い順に役を割り当てます。自動音声には、あえていちばん機械的な声を使います。</p>
+<div id="roles"></div>
+
+<h2>入っている日本語音声のすべて</h2>
+<p class="note">「聞く」を押すと、台本の一節をその声で読みます。声を聞き比べてください。</p>
+<div id="table"></div>
+<button class="big" id="again">音声の一覧を読み直す</button>
+
+<h2>読み上げる文</h2>
+<p class="note" id="sample"></p>
+
+<h2>判定</h2>
+<div id="verdict"></div>
+
+<h2>自然な声を増やす方法</h2>
+<div class="warn">
+<b>Windows の場合</b><br>
+Nanami・Keita といった自然な音声は、<b>Microsoft Edge でしか出てこないことがあります</b>。まず Edge でこのページを開き、一覧が変わるか確かめてください。<br><br>
+入っていない場合は、Windows の「設定 → 時刻と言語 → 音声認識 → 音声を管理 → 音声の追加」で日本語の音声を追加できます。
+</div>
+<div class="warn">
+<b>iPad・iPhone の場合</b><br>
+「設定 → アクセシビリティ → 読み上げコンテンツ → 声 → 日本語」で、Kyoko・Otoya の<b>「強化」または「プレミアム」</b>を選んでダウンロードすると、はっきり自然になります。標準のままだと機械的です。
+</div>
+<div class="warn">
+<b>Android の場合</b><br>
+「設定 → システム → 言語と入力 → テキスト読み上げ」で Google の音声サービスを選び、日本語の音声データを更新してください。
+</div>
+<div class="bad">
+<b>それでも足りないとき</b><br>
+合成音には限界があります。人の声で <code>audio/01.mp3</code>〜<code>20.mp3</code> を録音し、index.html の <code>USE_RECORDED</code> を <code>true</code> にするのが、いちばん確実です。
+</div>
+
+</div>
+
+<script>
+"use strict";
+var SAMPLE = "お待たせしました。ご本人確認のため、お名前をフルネームでお願いできますか。";
+document.getElementById("sample").textContent = "「" + SAMPLE + "」";
+
+var ua = navigator.userAgent;
+var browser = /Edg\//.test(ua) ? "Microsoft Edge"
+            : /OPR\//.test(ua) ? "Opera"
+            : /Chrome\//.test(ua) ? "Google Chrome"
+            : /Firefox\//.test(ua) ? "Firefox"
+            : /Safari\//.test(ua) ? "Safari" : "不明";
+document.getElementById("ua").textContent = browser;
+
+/* index.html と同じ採点式 */
+function voiceScore(v){
+  var n = (v.name || "") + " " + (v.voiceURI || "");
+  var s = 10;
+  if(/natural|neural|nanami|keita|masaru|shiori|daichi|mayu/i.test(n)) s += 100;
+  if(/online/i.test(n)) s += 40;
+  if(/google/i.test(n)) s += 60;
+  if(/kyoko|otoya|o-ren|hattori|siri/i.test(n)) s += 50;
+  if(v.localService === false) s += 25;
+  if(/haruka|ayumi|ichiro|sayaka/i.test(n)) s -= 20;
+  return s;
+}
+
+function say(v){
+  if(!window.speechSynthesis) return;
+  speechSynthesis.cancel();
+  var u = new SpeechSynthesisUtterance(SAMPLE);
+  u.lang = "ja-JP"; u.voice = v; u.rate = 0.97; u.pitch = 1.02;
+  speechSynthesis.speak(u);
+}
+
+function build(){
+  var host = document.getElementById("table");
+  var roles = document.getElementById("roles");
+  var verdict = document.getElementById("verdict");
+
+  if(!window.speechSynthesis){
+    document.getElementById("count").textContent = "この端末では音声合成が使えません";
+    host.innerHTML = ""; roles.innerHTML = "";
+    verdict.innerHTML = '<div class="bad">音声合成に対応していません。体験は文字だけで進みます。録音音声をご用意ください。</div>';
+    return;
+  }
+
+  var all = speechSynthesis.getVoices();
+  var ja = all.filter(function(v){ return /ja/i.test(v.lang); });
+  document.getElementById("count").textContent = ja.length + " 種類（端末全体では " + all.length + " 種類）";
+
+  if(!ja.length){
+    host.innerHTML = '<p class="note">まだ読み込まれていません。少し待って「音声の一覧を読み直す」を押してください。</p>';
+    roles.innerHTML = "";
+    verdict.innerHTML = '<div class="bad">日本語の音声が見つかりません。体験は文字だけで進みます。</div>';
+    return;
+  }
+
+  ja.sort(function(a,b){ return voiceScore(b) - voiceScore(a); });
+
+  // 役の割り当て
+  var A = ja[0], B = ja.length > 1 ? ja[1] : ja[0], R = ja[ja.length - 1];
+  var rolesDef = [
+    ["田村（前段の男）", A],
+    ["中村（警察官を騙る）", B],
+    ["冒頭の自動音声", R]
+  ];
+  var rh = "";
+  for(var i=0;i<rolesDef.length;i++){
+    rh += '<div class="role"><span class="tag">' + rolesDef[i][0] + '</span>' +
+          '<div class="vname">' + rolesDef[i][1].name + '</div></div>';
+  }
+  roles.innerHTML = rh;
+
+  // 一覧
+  var h = '<table><thead><tr><th class="n">#</th><th>音声の名前</th><th>言語</th><th>種別</th><th class="sc">点</th><th>試聴</th></tr></thead><tbody>';
+  for(var j=0;j<ja.length;j++){
+    var v = ja[j], cls = "";
+    if(v === A || v === B) cls = "best";
+    else if(v === R && ja.length > 2) cls = "worst";
+    h += '<tr class="' + cls + '"><td class="n">' + (j+1) + '</td>' +
+         '<td>' + v.name + '</td>' +
+         '<td>' + v.lang + '</td>' +
+         '<td>' + (v.localService === false ? "通信あり" : "端末内") + '</td>' +
+         '<td class="sc">' + voiceScore(v) + '</td>' +
+         '<td><button class="play" data-i="' + j + '">聞く</button></td></tr>';
+  }
+  h += '</tbody></table>';
+  host.innerHTML = h;
+
+  var btns = host.querySelectorAll("button.play");
+  for(var k=0;k<btns.length;k++){
+    btns[k].addEventListener("click", function(){
+      say(ja[Number(this.getAttribute("data-i"))]);
+    });
+  }
+
+  // 判定
+  var natural = ja.filter(function(v){
+    return /natural|neural|nanami|keita|google|kyoko|otoya/i.test(v.name);
+  });
+  var vh = "";
+  if(ja.length === 1){
+    vh = '<div class="bad"><b>日本語の音声が1種類しかありません。</b>' +
+         '田村・中村・自動音声のすべてが同じ声になります。高さと速さを変えているだけなので、差はほとんど出ません。' +
+         '下の方法で音声を追加するか、録音音声をご用意ください。</div>';
+  } else if(!natural.length){
+    vh = '<div class="bad"><b>自然な音声が入っていません。</b>' +
+         ja.length + '種類ありますが、どれも古い機械音声です。声を割り当て直しても、機械的に聞こえるのは変わりません。' +
+         (browser === "Google Chrome" ? '<br><br>まず <b>Microsoft Edge</b> で同じページを開いてみてください。Edge にだけ自然な音声が渡されることがあります。' : '') +
+         '</div>';
+  } else if(natural.length === 1){
+    vh = '<div class="warn"><b>自然な音声が1種類だけあります。</b>' +
+         '田村には使えますが、中村には古い音声が回るため、途中で質が落ちて聞こえます。もう1種類追加できると、はっきり良くなります。</div>';
+  } else {
+    vh = '<div class="ok"><b>十分な音声が入っています。</b>' +
+         '自然な音声が' + natural.length + '種類あり、田村と中村に別の声を割り当てられています。' +
+         'それでも機械的に感じる場合は、合成音そのものの限界です。録音音声をご検討ください。</div>';
+  }
+  verdict.innerHTML = vh;
+}
+
+build();
+if(window.speechSynthesis) speechSynthesis.onvoiceschanged = build;
+setTimeout(build, 400);
+setTimeout(build, 1500);
+document.getElementById("again").addEventListener("click", build);
+</script>
+</body>
+</html>
