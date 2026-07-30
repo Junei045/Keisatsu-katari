@@ -116,12 +116,14 @@ document.getElementById("ua").textContent = browser;
 function voiceScore(v){
   var n = (v.name || "") + " " + (v.voiceURI || "");
   var s = 10;
-  if(/natural|neural|nanami|keita|masaru|shiori|daichi|mayu/i.test(n)) s += 100;
-  if(/online/i.test(n)) s += 40;
+  if(/natural|neural|ナチュラル|ニューラル|自然/i.test(n)) s += 100;
+  if(/nanami|keita|masaru|shiori|daichi|mayu/i.test(n)) s += 100;
+  if(/七海|圭太|大智|真由|詩織|勝/.test(n)) s += 100;        // 日本語表記
+  if(/online|オンライン/i.test(n)) s += 40;
   if(/google/i.test(n)) s += 60;
-  if(/kyoko|otoya|o-ren|hattori|siri/i.test(n)) s += 50;
+  if(/kyoko|otoya|o-ren|hattori|siri|京子|お鈴/i.test(n)) s += 50;
   if(v.localService === false) s += 25;
-  if(/haruka|ayumi|ichiro|sayaka/i.test(n)) s -= 20;
+  if(/haruka|ayumi|ichiro|sayaka|春香|亜由美|一郎|沙也加/i.test(n)) s -= 5;
   return s;
 }
 
@@ -197,7 +199,7 @@ function build(){
 
   // 判定
   var natural = ja.filter(function(v){
-    return /natural|neural|nanami|keita|google|kyoko|otoya/i.test(v.name);
+    return /natural|neural|nanami|keita|google|kyoko|otoya|ナチュラル|七海|圭太|京子/i.test(v.name);
   });
   var vh = "";
   if(ja.length === 1){
