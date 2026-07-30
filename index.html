@@ -135,6 +135,13 @@ ul.checks li{margin-bottom:9px}
 .holding{color:#93a1b0}
 .holding b{display:block;font-size:22px;color:#dbe3ea;margin-bottom:8px}
 .holddots span{animation:blink 1.4s infinite}
+.artwrap{width:100%;text-align:center}
+.artwrap .cap{font-size:14px;color:#7f8d9b;margin-bottom:10px}
+.artwrap svg{width:100%;max-width:330px;height:auto;border-radius:8px;
+  box-shadow:0 10px 30px rgba(0,0,0,.45);animation:fadein .5s ease}
+@keyframes fadein{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:scale(1)}}
+.artproof{display:flex;gap:10px;margin:10px 0 0}
+.artproof svg{width:50%;height:auto;border-radius:6px;border:1px solid var(--line)}
 .holddots span:nth-child(2){animation-delay:.25s}
 .holddots span:nth-child(3){animation-delay:.5s}
 .noticebtn{
@@ -284,6 +291,12 @@ textarea{width:100%;font-family:var(--num);font-size:18px;padding:12px;border:2p
   <div id="lines"></div>
 
   <div class="card">
+    <h3>画面に映されたもの</h3>
+    <p class="note" style="margin-bottom:0">電話の途中で見せられた手帳と逮捕状です。いま、明るいところで落ち着いて見てください。<b>これは、この体験のために作った、ただの絵です。</b>作るのに数分もかかりません。画面に映るものは、何ひとつ身分の証明になりません。</p>
+    <div class="artproof" id="artProof"></div>
+  </div>
+
+  <div class="card">
     <h3>切り札 ／ 言ってよい言葉</h3>
     <ol>
       <li>「一度切って、こちらからかけ直します」</li>
@@ -325,11 +338,11 @@ var SCRIPT = [
  {sp:"a", who:"男性（田村と名乗る）", text:"お待たせしました。NTTファイナンス、カスタマーサポートの田村と申します。ご本人確認のため、お名前をフルネームでお願いできますか。",
   flag:{level:"small", why:"かけてきた側が本人確認を求めるのは逆です。名乗るべきは、かけてきた相手のほうです。"}},
 
- {sp:"a", who:"男性（田村と名乗る）", text:"{K}{N}のお名前で、東京都内に契約された回線がございまして、こちらの利用料金が三か月分、未納となっております。",
+ {sp:"a", who:"男性（田村と名乗る）", text:"{K}{N}のお名前で、東京都内で契約された携帯電話が、五回線ございます。この五回線分の利用料金が、三か月にわたって未納となっております。",
   flag:null},
 
- {sp:"a", who:"男性（田村と名乗る）", text:"ご記憶がない。……そうしますと、{N}の個人情報が第三者に使われている可能性がございます。これは犯罪の被害になりますので、警察におつなぎいたします。",
-  flag:{level:"max", why:"民間の会社が、電話を警察に「つなぐ」ことはできません。ここで詐欺は確定します。警察に相談するなら、自分で電話をかけます。"}},
+ {sp:"a", who:"男性（田村と名乗る）", text:"ご記憶がない。……そうしますと、{N}の名義が、ご本人の知らないところで使われていることになります。こうした回線は、詐欺のグループが連絡用に作るものです。犯罪の被害にあたりますので、警察におつなぎいたします。",
+  flag:{level:"max", why:"民間の会社が、電話を警察に「つなぐ」ことはできません。ここで詐欺は確定します。警察に相談するなら、いったん切って、自分で電話をかけます。なお、料金の未納であれば、届くのは督促状であって、警察への転送ではありません。"}},
 
  {sp:"a", who:"男性（田村と名乗る）", text:"少々お待ちください。ただいま、警視庁のほうへおつなぎします。",
   flag:null},
@@ -337,7 +350,7 @@ var SCRIPT = [
  {sp:"b", who:"男性（中村と名乗る）", text:"お電話代わりました。警視庁 生活安全課の中村と申します。階級は警部補です。",
   flag:{level:"mid", why:"転送されてきた相手は、名乗っても確かめようがありません。本物であれば、いったん切って、自分で警察署の代表番号にかけ直しても何の問題もありません。"}},
 
- {sp:"b", who:"中村（警察官を騙る）", text:"田村さんから伺いました。{N}、落ち着いて聞いてください。今、あなたの名前が使われた口座が、詐欺グループの資金の受け取りに使われています。",
+ {sp:"b", who:"中村（警察官を騙る）", text:"田村さんから伺いました。{N}、落ち着いて聞いてください。同じお名前で開設された銀行口座が、都内で三つ見つかっています。そのうちの一つに、詐欺の被害金が振り込まれているんです。",
   flag:null},
 
  {sp:"b", who:"中村（警察官を騙る）", text:"先週、都内でグループの一人を逮捕しました。その男が、取り調べであなたの名前を出しているんです。",
@@ -352,11 +365,11 @@ var SCRIPT = [
  {sp:"b", who:"中村（警察官を騙る）", text:"今、おひとりですか。ご家族は何時ごろお戻りになりますか。",
   flag:{level:"max", why:"在宅の状況と家族構成を聞き出しています。詐欺だけでなく、強盗の下見に使われることもあります。答えてはいけません。"}},
 
- {sp:"b", who:"中村（警察官を騙る）", text:"では、私の身分を証明します。LINEはお使いですか。そちらに警察手帳と、逮捕状の写しをお送りします。",
-  flag:{level:"max", why:"警察がLINEやSNSで捜査の連絡をすることはありません。逮捕状を見せることもありません。画面に映る手帳も書類も、簡単に作れます。"}},
+ {sp:"b", who:"中村（警察官を騙る）", text:"では、私の身分を証明いたします。いまから、こちらの映像をそちらの画面にお送りします。画面をご覧ください。",
+  flag:{level:"max", why:"警察が、身分証を画面に映して信用させることはありません。そして画面に映るものは、いくらでも作れます。いま見たものも、この体験のために作った、ただの絵です。"}},
 
- {sp:"b", who:"中村（警察官を騙る）", text:"こちらから公式のアカウントを送りますので、追加してください。以後の連絡は、そちらでいたします。",
-  flag:{level:"mid", why:"電話からLINEへ移させるのは、記録を相手の手の中に置き、いつでも連絡がつく状態にするためです。"}},
+ {sp:"b", who:"中村（警察官を騙る）", text:"ご覧になれましたか。これが私の警察手帳です。そしてこちらが、今回の逮捕状の写しです。{N}のお名前も載っております。よくご覧ください。",
+  flag:{level:"max", why:"逮捕状を電話の相手に見せる手続きは、ありません。逮捕状は、逮捕するその場で本人に示すものです。「写しを送る」という制度は存在しません。名前が載っているのは、相手がいま打ち込んだからです。"}},
 
  {sp:"b", who:"中村（警察官を騙る）", text:"{N}、あなたの潔白を証明するには、あなたの資産が犯罪に使われていないことを、こちらで確認する必要があります。",
   flag:null},
@@ -388,12 +401,38 @@ var SCRIPT = [
    ms を変えれば長さを調整できます。
    ============================================================ */
 var INTERLUDE = {
+  0: {type:"connect", label:"おつなぎしています",
+      text:"担当者につないでいます", clicks:3, ms:3000},
+
   1: {type:"you",  label:"あなたが答える番です",
       text:"声に出して、お名前を答えてください。",
       ex:"例：「{S}です」", ms:5000},
 
+  2: {type:"you",  label:"あなたが答える番です",
+      text:"心当たりがないことを、声に出して言ってください。",
+      ex:"例：「そんな契約はしていません」", ms:5000},
+
   4: {type:"hold", label:"保留",
-      text:"転送しています", ms:12000}
+      text:"転送しています", ms:12000},
+
+  7: {type:"you",  label:"あなたが答える番です",
+      text:"思ったことを、声に出してください。",
+      ex:"例：「私が疑われているのですか」", ms:5000},
+
+  11:{type:"show", art:"techo",   label:"映像", text:"映像を受信しています", ms:6500},
+  12:{type:"show", art:"warrant", label:"映像", text:"映像を受信しています", ms:8000},
+
+  10:{type:"you",  label:"あなたが答える番です",
+      text:"聞かれたことに、答えてください。",
+      ex:"例：「今は、私ひとりです」", ms:5000},
+
+  14:{type:"you",  label:"あなたが答える番です",
+      text:"金額を、声に出して答えてください。",
+      ex:"例：「定期を入れて、○百万円ほどです」", ms:6000},
+
+  17:{type:"you",  label:"あなたが答える番です",
+      text:"思ったことを、声に出してください。",
+      ex:"例：「銀行で嘘をつくのですか」", ms:5000}
 };
 
 /* ==================== 状態 ==================== */
@@ -532,6 +571,8 @@ var YOMI = [
   ["NTTファイナンス", "エヌティーティー ファイナンス"],
   ["LINE", "ライン"],
   ["三か月分", "サンカゲツブン"],
+  ["三か月", "サンカゲツ"],
+  ["五回線", "ゴカイセン"],
   ["第三者", "ダイサンシャ"],
   ["生活安全課", "セイカツアンゼンカ"],
   ["警部補", "ケイブホ"]
@@ -672,6 +713,30 @@ function stopRing(){
   if(navigator.vibrate){ try{ navigator.vibrate(0); }catch(e){} }
 }
 
+/* 切り替え音：交換機が回線をつなぎ替える「カチッ」。
+   自動音声から人に代わるとき、人から人に代わるときに入れます。 */
+function playClicks(n, spacing){
+  var ac = audioCtx(); if(!ac) return;
+  try{
+    var t0 = ac.currentTime + 0.15;
+    for(var i=0;i<n;i++){
+      var t = t0 + i * (spacing || 0.62);
+      var osc = ac.createOscillator();
+      var g   = ac.createGain();
+      var bp  = ac.createBiquadFilter();
+      bp.type = "bandpass"; bp.frequency.value = 1500; bp.Q.value = 1.2;
+      osc.type = "square";
+      osc.frequency.setValueAtTime(1400, t);
+      osc.frequency.setValueAtTime(900,  t + 0.02);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.linearRampToValueAtTime(0.16, t + 0.004);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.055);
+      osc.connect(bp); bp.connect(g); g.connect(ac.destination);
+      osc.start(t); osc.stop(t + 0.08);
+    }
+  }catch(e){}
+}
+
 /* 保留音：低めの二音を、ゆっくり繰り返す */
 function startHold(){
   stopHold();
@@ -710,6 +775,67 @@ function stopAudio(){
   st.timeouts = [];
   if(st.tick){ clearInterval(st.tick); st.tick = null; }
 }
+
+/* ============================================================
+   「画面に映して見せる」ための絵。
+   本物に似せた偽造物ではなく、ひと目でそれと分かる程度の図です。
+   それでも、電話の最中に見せられれば十分に効きます——
+   そこがこの場面の要点です。
+   ============================================================ */
+var ART_FONT = "'Hiragino Kaku Gothic ProN','Yu Gothic','Meiryo',sans-serif";
+
+function artTecho(){
+  return '<svg viewBox="0 0 340 210" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="警察手帳のような画像">' +
+  '<rect width="340" height="210" rx="10" fill="#16233a"/>' +
+  '<rect x="10" y="10" width="150" height="190" rx="6" fill="#1d2c46"/>' +
+  '<circle cx="85" cy="88" r="40" fill="#c9a227"/><circle cx="85" cy="88" r="31" fill="#16233a"/>' +
+  '<circle cx="85" cy="88" r="23" fill="#c9a227"/><circle cx="85" cy="88" r="12" fill="#16233a"/>' +
+  '<text x="85" y="152" fill="#e7d9a6" font-size="17" font-weight="700" text-anchor="middle" font-family="' + ART_FONT + '">警視庁</text>' +
+  '<text x="85" y="175" fill="#9fb0c6" font-size="12" text-anchor="middle" font-family="' + ART_FONT + '">METROPOLITAN POLICE</text>' +
+  '<rect x="170" y="10" width="160" height="190" rx="6" fill="#f4f2ec"/>' +
+  '<text x="182" y="34" fill="#1b2228" font-size="14" font-weight="700" font-family="' + ART_FONT + '">警察手帳</text>' +
+  '<rect x="182" y="44" width="52" height="64" fill="#c9ccd1"/>' +
+  '<circle cx="208" cy="68" r="14" fill="#9aa1a9"/>' +
+  '<path d="M186 108c4-16 40-16 44 0z" fill="#9aa1a9"/>' +
+  '<text x="244" y="58" fill="#5b6670" font-size="10" font-family="' + ART_FONT + '">氏名</text>' +
+  '<text x="244" y="74" fill="#1b2228" font-size="14" font-weight="700" font-family="' + ART_FONT + '">中村 隆一</text>' +
+  '<text x="244" y="94" fill="#5b6670" font-size="10" font-family="' + ART_FONT + '">階級</text>' +
+  '<text x="244" y="109" fill="#1b2228" font-size="13" font-family="' + ART_FONT + '">警部補</text>' +
+  '<line x1="182" y1="124" x2="318" y2="124" stroke="#c9ccd1"/>' +
+  '<text x="182" y="144" fill="#5b6670" font-size="10" font-family="' + ART_FONT + '">所属</text>' +
+  '<text x="182" y="159" fill="#1b2228" font-size="12" font-family="' + ART_FONT + '">生活安全部 生活安全課</text>' +
+  '<text x="182" y="182" fill="#5b6670" font-size="10" font-family="' + ART_FONT + '">記章番号　第 74126 号</text>' +
+  '</svg>';
+}
+
+function artWarrant(){
+  /* 名字だけを出します。適当な下の名前を足すと「これは自分ではない」と
+     気づかれてしまい、この場面の効き目がなくなります。 */
+  var n = st.name ? st.name : "○　○　○";
+  return '<svg viewBox="0 0 340 230" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="逮捕状のような画像">' +
+  '<rect width="340" height="230" fill="#faf8f3"/>' +
+  '<rect x="8" y="8" width="324" height="214" fill="none" stroke="#3d474f"/>' +
+  '<text x="170" y="42" fill="#1b2228" font-size="22" font-weight="700" letter-spacing="6" text-anchor="middle" font-family="' + ART_FONT + '">逮 捕 状</text>' +
+  '<text x="170" y="60" fill="#5b6670" font-size="10" text-anchor="middle" font-family="' + ART_FONT + '">（通常逮捕）</text>' +
+  '<line x1="24" y1="72" x2="316" y2="72" stroke="#3d474f"/>' +
+  '<text x="30" y="92" fill="#5b6670" font-size="11" font-family="' + ART_FONT + '">被疑者の氏名</text>' +
+  '<text x="130" y="93" fill="#1b2228" font-size="16" font-weight="700" font-family="' + ART_FONT + '">' + n + '</text>' +
+  '<line x1="24" y1="102" x2="316" y2="102" stroke="#dcd8cf"/>' +
+  '<text x="30" y="120" fill="#5b6670" font-size="11" font-family="' + ART_FONT + '">罪名</text>' +
+  '<text x="130" y="121" fill="#1b2228" font-size="14" font-family="' + ART_FONT + '">詐欺、組織的犯罪処罰法違反</text>' +
+  '<line x1="24" y1="130" x2="316" y2="130" stroke="#dcd8cf"/>' +
+  '<text x="30" y="148" fill="#5b6670" font-size="11" font-family="' + ART_FONT + '">被疑事実の要旨</text>' +
+  '<text x="130" y="149" fill="#1b2228" font-size="12" font-family="' + ART_FONT + '">別紙のとおり</text>' +
+  '<line x1="24" y1="158" x2="316" y2="158" stroke="#dcd8cf"/>' +
+  '<text x="30" y="176" fill="#5b6670" font-size="11" font-family="' + ART_FONT + '">有効期間</text>' +
+  '<text x="130" y="177" fill="#1b2228" font-size="12" font-family="' + ART_FONT + '">発付の日から七日間</text>' +
+  '<text x="30" y="205" fill="#1b2228" font-size="12" font-family="' + ART_FONT + '">東京地方裁判所　裁判官</text>' +
+  '<circle cx="270" cy="196" r="24" fill="none" stroke="#c0392b" stroke-width="2.5"/>' +
+  '<text x="270" y="192" fill="#c0392b" font-size="11" text-anchor="middle" font-family="' + ART_FONT + '">裁判官</text>' +
+  '<text x="270" y="205" fill="#c0392b" font-size="11" text-anchor="middle" font-family="' + ART_FONT + '">之印</text>' +
+  '</svg>';
+}
+function artOf(kind){ return kind === "warrant" ? artWarrant() : artTecho(); }
 
 /* ==================== 通話の進行 ==================== */
 function fmt(ms){
@@ -756,6 +882,31 @@ function afterLine(){
 }
 
 function runInterlude(it, done){
+  if(it.type === "show"){
+    $("who").textContent = it.label;
+    $("subs").innerHTML = '<div class="artwrap"><p class="cap">' + it.text + '</p></div>';
+    st.timeouts.push(setTimeout(function(){
+      if(st.aborted) return;
+      $("subs").innerHTML = '<div class="artwrap">' + artOf(it.art) + '</div>';
+    }, 1200));
+    st.timeouts.push(setTimeout(function(){
+      if(st.aborted) return;
+      done();
+    }, it.ms));
+    return;
+  }
+  if(it.type === "connect"){
+    $("who").textContent = it.label;
+    $("subs").innerHTML =
+      '<div class="holding"><b>' + it.text +
+      '<span class="holddots"><span>・</span><span>・</span><span>・</span></span></b></div>';
+    playClicks(it.clicks || 3);
+    st.timeouts.push(setTimeout(function(){
+      if(st.aborted) return;
+      done();
+    }, it.ms));
+    return;
+  }
   if(it.type === "hold"){
     $("who").textContent = "保留中";
     $("subs").innerHTML =
@@ -765,7 +916,12 @@ function runInterlude(it, done){
     startHold();
     st.timeouts.push(setTimeout(function(){
       if(st.aborted) return;
-      stopHold(); done();
+      stopHold();
+      playClicks(2, 0.42);          // 回線がつながる音
+      st.timeouts.push(setTimeout(function(){
+        if(st.aborted) return;
+        done();
+      }, 1100));
     }, it.ms));
     return;
   }
@@ -867,6 +1023,7 @@ function showResult(){
     out += '</div>';
   }
   $("lines").innerHTML = out;
+  if($("artProof")) $("artProof").innerHTML = artTecho() + artWarrant();
 
   show("s-result");
 }
