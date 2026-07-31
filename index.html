@@ -216,10 +216,10 @@ textarea{width:100%;font-family:var(--num);font-size:18px;padding:12px;border:2p
   <h2>耳もとで聞いてください</h2>
   <p class="note">イヤホンかヘッドホンを使ってください。電話の怖さは、声が耳もとに入ってくるところにあります。まわりの音が聞こえていると、その感じが出ません。</p>
 
-  <label class="note" for="nameInput" style="display:block;margin-top:22px;font-weight:700;color:var(--ink)">お名前（名字だけ・入れなくても大丈夫です）</label>
-  <input id="nameInput" type="text" placeholder="例：鈴木" autocomplete="off"
+  <label class="note" for="nameInput" style="display:block;margin-top:22px;font-weight:700;color:var(--ink)">お名前（姓名・本名でも仮の名前でも構いません・入れなくても大丈夫です）</label>
+  <input id="nameInput" type="text" placeholder="例：鈴木　太郎" autocomplete="off"
     style="width:100%;font-family:inherit;font-size:20px;padding:14px;border:2px solid var(--line);border-radius:10px;margin-top:8px">
-  <p class="note" style="margin-top:8px">入れると、相手があなたの名前を呼びます。名前は端末の外に出ません。</p>
+  <p class="note" style="margin-top:8px">入れると、相手があなたの名前を呼びます。名前は端末の外に出ません。本名を入れたくない場合は、適当な名前で構いません。</p>
 
   <details class="vcfg" id="vcfg">
     <summary>声を選ぶ（進行役の方だけ）</summary>
@@ -356,7 +356,7 @@ var SCRIPT = [
  {sp:"b", who:"中村（警察官を騙る）", text:"先週、都内でグループの一人を逮捕しました。その男が、取り調べであなたの名前を出しているんです。",
   flag:{level:"mid", why:"捜査の内容を電話で一般の人に話すことはありません。怖がらせて、考える力を奪うための作り話です。"}},
 
- {sp:"b", who:"中村（警察官を騙る）", text:"いえ、まだ容疑者ではありません。ただ、このままですと、あなたが加害者の側として扱われることになります。それを確認するために、私は電話しているんです。",
+ {sp:"b", who:"中村（警察官を騙る）", text:"いえ、まだ容疑者ではありません。ただ、このままですと、あなたが加害者の側として扱われることになります。それを避けるために、私は電話しているんです。",
   flag:{level:"mid", why:"「あなたを助けるために電話している」という形をつくって、味方だと思わせます。ここから相手の言うことを疑いにくくなります。"}},
 
  {sp:"b", who:"中村（警察官を騙る）", text:"それから、これは捜査中の案件です。内容を外に漏らさないでください。ご家族にもです。捜査情報が漏れますと、共犯を疑われることになります。",
@@ -809,9 +809,9 @@ function artTecho(){
 }
 
 function artWarrant(){
-  /* 名字だけを出します。適当な下の名前を足すと「これは自分ではない」と
-     気づかれてしまい、この場面の効き目がなくなります。 */
-  var n = st.name ? st.name : "○　○　○";
+  /* 参加者が入力した名前（姓名。本名でも仮名でも可）をそのまま出します。
+     本物の逮捕状は姓名を記載するため、入力欄も姓名にしています。 */
+  var n = st.name ? st.name : "○　○　○　○";
   return '<svg viewBox="0 0 340 230" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="逮捕状のような画像">' +
   '<rect width="340" height="230" fill="#faf8f3"/>' +
   '<rect x="8" y="8" width="324" height="214" fill="none" stroke="#3d474f"/>' +
