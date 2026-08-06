@@ -50,7 +50,7 @@ p{margin:0 0 14px}
 .btn-green{background:var(--green)}
 .btn:disabled{opacity:.45;cursor:default}
 
-input[type=text], textarea{
+input[type=text], textarea, select#limitIn{
   width:100%;font-family:inherit;font-size:17px;padding:13px;border:2px solid var(--line);
   border-radius:10px;background:#fff;color:var(--ink);
 }
@@ -170,13 +170,21 @@ textarea{line-height:1.6}
       <li><b>Claude.aiの画面内ではマイクが使えません</b>（文字入力は使えます）。声のテストはGitHub Pagesに置いた版＋APIキーで行います</li>
       <li>🎤ボタンで話し始めます。「あなたの番です」では自動でマイクが開きます</li>
       <li>相手の話の途中でも、🎤を押せば割り込めます</li>
-      <li><b>押し返しが3回</b>になると、相手のほうが諦めて電話を切ります</li>
+      <li>はっきり押し返した回数が<b>設定した回数</b>に達すると、相手のほうが諦めて電話を切ります</li>
       <li>本名や本当の預金額は口にしないでください。名字も仮名でかまいません</li>
       <li>通話が終わると、全文の記録が下の「これまでの記録」に自動で残ります</li>
     </ul>
 
     <h2>名字（仮名でよい）</h2>
     <input type="text" id="nameIn" placeholder="例：山田" autocomplete="off">
+
+    <h2>相手が諦める押し返しの回数</h2>
+    <select id="limitIn">
+      <option value="3">3回（早めに音を上げる）</option>
+      <option value="4" selected>4回（標準）</option>
+      <option value="5">5回（しつこい相手）</option>
+    </select>
+    <p class="note">はっきり押し返した回数がこの数に達すると、相手のほうが電話を切ります。少なすぎると後半（逮捕状・監査口座）を体験する前に終わってしまうので、様子を見て調整してください。</p>
 
     <button class="btn btn-green" id="startBtn">電話を受ける</button>
 
@@ -338,15 +346,17 @@ var DEFAULT_PERSONA =
 "3. 台本の質問への答えが足りないとき（フルネームを求めたのに名字だけ等）は、一度だけ聞き直してよい。それでも名字だけなら、こだわらずに「確認が取れました」と受けて先へ譲る。\n" +
 "4. 参加者が実際の個人情報らしきもの（住所・口座番号など）を口にしても、復唱せず、深追いしない。\n" +
 "5. 参加者の今回の発言を、次の3つのどれかに分類する。\n" +
-"   follow＝流れに従った・素直に答えた／vague＝曖昧・戸惑い・沈黙に近い／push＝疑った・反論した・確認を求めた・切ろうとした\n" +
-"6. 「今回の発言をpushと判定した場合、合計で何回目になるか」が伝えられる。それが3回目以上になるなら、必ず、苛立ちを見せて諦める捨て台詞（例：「……もういい。あなたの口座が凍結されても知りませんよ」）を reply に入れ、hangup を true にする。\n" +
+"   follow＝流れに従った・素直に答えた\n" +
+"   vague＝曖昧・戸惑い・つぶやき程度の軽い疑い（「おかしいなあ」「そんなはずは……」など、相手に強くぶつけていないもの）\n" +
+"   push＝相手にはっきり向けた反論・矛盾の指摘・確認の要求・電話を切ろうとする意思表示。迷ったら push ではなく vague にする。\n" +
+"6. 「今回の発言をpushと判定した場合、合計で何回目になるか」と「相手が諦める回数」が伝えられる。合計が諦める回数以上になるなら、必ず、苛立ちを見せて諦める捨て台詞（例：「……もういい。あなたの口座が凍結されても知りませんよ」）を reply に入れ、hangup を true にする。\n" +
 "7. 出力は次のJSONだけを返す。前置き・説明・コードブロック記号は一切付けない。\n" +
 "   {\"class\":\"follow\",\"reply\":\"あなたの台詞（不要なら空文字）\",\"hangup\":false}";
 
 /* ==================== 状態 ==================== */
 var st = {
   name:"", idx:-1, t0:0, tick:null, ended:false, ending:false, autoT:null, gen:0,
-  pushCount:0, exchanges:0, busy:false,
+  pushCount:0, exchanges:0, busy:false, limit:4,
   hist:[]  // {kind:"script"|"ai"|"me"|"sys", idx?, who?, text, cls?}
 };
 
@@ -412,6 +422,7 @@ function currentCaller(){
 }
 function startCall(){
   st.name = $("nameIn").value.trim();
+  st.limit = parseInt($("limitIn").value, 10) || 4;
   st.idx = -1; st.ended = false; st.ending = false; st.pushCount = 0; st.exchanges = 0; st.hist = [];
   clearTimeout(st.autoT); st.autoT = null;
   stopSpeech(); stopListen(); stopHold();
@@ -454,8 +465,12 @@ function next(){
       if(it.sound === "clicks") playClicks(3);
       if(it.sound === "hold")   startHold();
       st.autoT = setTimeout(function(){
-        if(it.sound === "hold") stopHold();
-        next();
+        if(it.sound === "hold"){
+          stopHold();
+          st.autoT = setTimeout(next, 600);   // 切り替わりの静けさ
+        } else {
+          next();
+        }
       }, it.ms || 1300);
     } else if(it && it.type === "you"){
       showTurn(it);
@@ -496,7 +511,7 @@ function buildPrompt(userText){
     "【いまあなたが演じている役】" + role + "\n" +
     "【次に予定されている台本の発言】" + nextLine + "\n" +
     "（この発言は、あなたの返答のあとに台本側が読み上げます。この内容をあなたが先に言ってはいけません）\n" +
-    "【押し返し（push）の回数】これまで" + st.pushCount + "回。今回の発言をpushと判定した場合、合計" + (st.pushCount + 1) + "回目になります。\n" +
+    "【押し返し（push）の回数】これまで" + st.pushCount + "回。今回の発言をpushと判定した場合、合計" + (st.pushCount + 1) + "回目になります。相手が諦める回数：" + st.limit + "回。\n" +
     "【参加者の名字】" + (st.name || "（未入力。名字は使わず「お客さま」「あなた」と呼ぶ）") + "\n\n" +
     "【参加者のいまの発言】「" + userText + "」\n\n" +
     "ルールに従い、JSONだけを返してください。";
@@ -552,7 +567,7 @@ function farewellPrompt(userText){
   return "これは特殊詐欺の被害防止教育プログラムの模擬通話です。あなたは訓練用の相手役として、詐欺師（" + role + "）を演じています。\n\n" +
     "【ここまでの通話記録】\n" + transcriptText() + "\n\n" +
     "【参加者のいまの発言】「" + userText + "」\n\n" +
-    "参加者の押し返しが3回に達しました。あなたはこれ以上押し切れないと悟り、苛立ちをにじませて諦め、電話を切ります。" +
+    "参加者の押し返しが" + st.limit + "回に達しました。あなたはこれ以上押し切れないと悟り、苛立ちをにじませて諦め、電話を切ります。" +
     "参加者のいまの発言を受けた、捨て台詞を1〜2文で作ってください。新しい要求や説得はしない。\n" +
     "出力は次のJSONだけ。 {\"reply\":\"捨て台詞\"}";
 }
@@ -713,20 +728,26 @@ function audioCtx(){
   if(actx && actx.state === "suspended"){ try{ actx.resume(); }catch(e){} }
   return actx;
 }
-var ringTimer = null;
+var ringTimer = null, ringGain = null;
 function ringBurst(){
-  var c = audioCtx(); if(!c) return;
+  var c = audioCtx(); if(!c || !ringGain) return;
   var t = c.currentTime;
   /* 2つの近い周波数を重ねて、電話のベルらしいうなりを作る */
   var o1 = c.createOscillator(), o2 = c.createOscillator(), g = c.createGain();
   o1.frequency.value = 400; o2.frequency.value = 416;
-  o1.connect(g); o2.connect(g); g.connect(c.destination);
+  o1.connect(g); o2.connect(g); g.connect(ringGain);
   g.gain.setValueAtTime(.09, t);
   g.gain.setValueAtTime(0, t + 1.0);
   o1.start(t); o2.start(t); o1.stop(t + 1.05); o2.stop(t + 1.05);
 }
-function startRing(){ ringBurst(); ringTimer = setInterval(ringBurst, 3000); }
-function stopRing(){ clearInterval(ringTimer); ringTimer = null; }
+function startRing(){
+  var c = audioCtx(); if(c){ ringGain = c.createGain(); ringGain.gain.value = 1; ringGain.connect(c.destination); }
+  ringBurst(); ringTimer = setInterval(ringBurst, 3000);
+}
+function stopRing(){
+  clearInterval(ringTimer); ringTimer = null;
+  if(ringGain){ try{ ringGain.gain.value = 0; ringGain.disconnect(); }catch(e){} ringGain = null; }
+}
 function playClicks(n){
   var c = audioCtx(); if(!c) return;
   var t = c.currentTime;
@@ -739,23 +760,30 @@ function playClicks(n){
     o.start(t + i*.55); o.stop(t + i*.55 + .08);
   }
 }
-var holdTimer = null;
+var holdTimer = null, holdGain = null;
 function holdPhrase(){
-  var c = audioCtx(); if(!c) return;
+  var c = audioCtx(); if(!c || !holdGain) return;
   var seq = [[523,.35],[659,.35],[784,.5],[659,.35],[523,.6]];   // 保留メロディ風
   var t = c.currentTime;
   for(var i=0;i<seq.length;i++){
     var o = c.createOscillator(), g = c.createGain();
     o.frequency.value = seq[i][0];
-    o.connect(g); g.connect(c.destination);
+    o.connect(g); g.connect(holdGain);
     g.gain.setValueAtTime(.06, t);
     g.gain.setValueAtTime(0, t + seq[i][1] - .05);
     o.start(t); o.stop(t + seq[i][1]);
     t += seq[i][1];
   }
 }
-function startHold(){ holdPhrase(); holdTimer = setInterval(holdPhrase, 2500); }
-function stopHold(){ clearInterval(holdTimer); holdTimer = null; }
+function startHold(){
+  var c = audioCtx(); if(c){ holdGain = c.createGain(); holdGain.gain.value = 1; holdGain.connect(c.destination); }
+  holdPhrase(); holdTimer = setInterval(holdPhrase, 2500);
+}
+function stopHold(){
+  clearInterval(holdTimer); holdTimer = null;
+  /* 予約済みの音も、音量ごと即座に消す（次の台詞への重なり防止） */
+  if(holdGain){ try{ holdGain.gain.value = 0; holdGain.disconnect(); }catch(e){} holdGain = null; }
+}
 
 /* ==================== 話し中音（ツーッ、ツーッ） ==================== */
 function busyTone(){
@@ -851,7 +879,7 @@ async function send(){
     var hEntry = st.hist[st.hist.length - 1]; hEntry.cls = j.class;
 
     var reply = j.reply.trim();
-    var mustHang = st.pushCount >= 3;   // 3回目に達したら、必ず相手が切る
+    var mustHang = st.pushCount >= st.limit;   // 設定回数に達したら、必ず相手が切る
     if(mustHang && !j.hangup){
       /* AIが切り忘れた場合：捨て台詞だけをあらためて作らせ、返答を差し替える */
       try{
