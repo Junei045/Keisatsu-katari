@@ -1,0 +1,1023 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>あやしい電話 体験プログラム｜AI会話 試作版（ステップ2・声で会話）</title>
+<style>
+:root{
+  --call-bg:#10151b;
+  --call-bg-2:#1b232c;
+  --paper:#eceef1;
+  --ink:#11161c;
+  --line:#cfd5dc;
+  --muted:#8a96a3;
+  --green:#16a05a;
+  --red:#dc2f26;
+  --amber:#f0a32e;
+  --gothic:"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic Medium","Yu Gothic","Meiryo",sans-serif;
+  --num:"SF Mono",Menlo,Consolas,"Courier New",monospace;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  background:#20262e;font-family:var(--gothic);color:var(--ink);
+  font-size:17px;line-height:1.7;display:flex;justify-content:center;min-height:100vh;
+}
+#handset{
+  width:100%;max-width:520px;background:var(--paper);min-height:100vh;
+  position:relative;overflow:hidden;display:flex;flex-direction:column;
+}
+@media(min-width:580px){
+  body{align-items:center;padding:24px 0}
+  #handset{min-height:0;height:min(880px,calc(100vh - 48px));border-radius:28px;box-shadow:0 24px 70px rgba(0,0,0,.5)}
+}
+.screen{display:none;flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.screen.on{display:flex;flex-direction:column}
+.pad{padding:26px 22px 40px}
+
+h1{font-size:24px;font-weight:900;line-height:1.4;margin:0 0 6px}
+h2{font-size:19px;font-weight:900;margin:26px 0 10px}
+p{margin:0 0 14px}
+.eyebrow{font-size:13px;font-weight:900;letter-spacing:.22em;color:var(--muted);margin:0 0 14px}
+.note{font-size:14px;color:#5b6670;line-height:1.7}
+
+.btn{
+  display:block;width:100%;border:0;border-radius:14px;font-family:inherit;
+  font-size:20px;font-weight:900;padding:18px 16px;margin:14px 0 0;cursor:pointer;color:#fff;min-height:62px;
+}
+.btn:focus-visible{outline:3px solid #2b6cb0;outline-offset:3px}
+.btn-green{background:var(--green)}
+.btn:disabled{opacity:.45;cursor:default}
+
+input[type=text], textarea{
+  width:100%;font-family:inherit;font-size:17px;padding:13px;border:2px solid var(--line);
+  border-radius:10px;background:#fff;color:var(--ink);
+}
+textarea{line-height:1.6}
+
+/* ===== 指示文の編集（進行役向け） ===== */
+.vcfg{margin-top:24px;border:2px solid var(--line);border-radius:12px;background:#fff;padding:0 16px 4px}
+.vcfg summary{cursor:pointer;padding:15px 0;font-size:16px;font-weight:700;color:#3d474f}
+.vcfg[open] summary{border-bottom:1px solid var(--line);margin-bottom:12px}
+.vcfg textarea{font-size:14px;font-family:var(--num);min-height:280px}
+.vrow{margin-bottom:14px}
+.vrow label{display:block;font-size:15px;font-weight:700;margin-bottom:5px}
+.vpick{display:flex;gap:8px}
+.vpick select{flex:1;min-width:0;font-family:inherit;font-size:15px;padding:10px;border:2px solid var(--line);border-radius:9px;background:#fff;color:var(--ink)}
+.vplay{flex:0 0 54px;border:2px solid var(--line);border-radius:9px;background:#eef2f5;font-family:inherit;font-size:16px;color:#2b3540;cursor:pointer}
+.loglist{border:1px solid var(--line);border-radius:10px;background:#fff;margin:4px 0 14px}
+.logrow{display:flex;gap:8px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--line);font-size:14px}
+.logrow:last-child{border-bottom:0}
+.logrow b{flex:1;font-weight:700;color:#3d474f;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.logrow button{border:1px solid var(--line);background:#eef2f5;border-radius:8px;font-family:inherit;font-size:13px;padding:6px 10px;cursor:pointer}
+#micBtn{border:0;border-radius:12px;font-family:inherit;cursor:pointer;padding:0 14px;font-size:22px;background:#2b3540;color:#fff}
+#micBtn.onair{background:var(--red);animation:pulse 1.1s infinite}
+@keyframes pulse{50%{opacity:.55}}
+
+/* ===== 通話画面 ===== */
+#s-call{background:var(--call-bg);color:#e8edf2}
+#callhead{
+  flex:0 0 auto;display:flex;align-items:center;gap:12px;
+  padding:14px 16px;background:var(--call-bg-2);border-bottom:1px solid #2a3541;
+}
+#callhead .who{flex:1;min-width:0}
+#callhead .who b{display:block;font-size:16px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#callhead .who span{font-size:12px;color:#93a1b0}
+#timer{font-family:var(--num);font-size:15px;color:#93a1b0}
+#hangBtn{
+  border:0;border-radius:999px;background:var(--red);color:#fff;font-family:inherit;
+  font-size:14px;font-weight:900;padding:10px 16px;cursor:pointer;white-space:nowrap;
+}
+
+#log{flex:1;overflow-y:auto;padding:16px 14px 8px;-webkit-overflow-scrolling:touch}
+.msg{margin:0 0 12px;max-width:88%}
+.msg .meta{font-size:11.5px;color:#7b8897;margin:0 0 3px;padding:0 4px}
+.msg .bub{
+  padding:11px 14px;border-radius:16px;font-size:16.5px;line-height:1.65;
+  white-space:pre-wrap;word-break:break-word;
+}
+.m-them{margin-right:auto}
+.m-them .bub{background:#28323e;color:#eef2f6;border-bottom-left-radius:5px}
+.m-them.ai .bub{background:#1f3a4d;border:1px solid #2e5871}
+.m-them.ai .meta::after{content:"　AI応答";color:#5aa9d6;font-weight:700}
+.m-me{margin-left:auto}
+.m-me .meta{text-align:right}
+.m-me .bub{background:var(--green);color:#fff;border-bottom-right-radius:5px}
+.m-me .cls{display:inline-block;font-size:11px;font-weight:900;border-radius:6px;padding:1px 7px;margin-top:4px}
+.cls-push{background:#3b2020;color:#ff9d94}
+.cls-vague{background:#3b3320;color:#f0cf7e}
+.cls-follow{background:#20303b;color:#9ec9e8}
+.chip{
+  text-align:center;font-size:13px;color:#93a1b0;margin:14px auto;max-width:90%;
+}
+.chip b{color:#c8d2dc}
+.err{color:#ff9d94}
+
+/* あなたの番バナー */
+#yourTurn{
+  display:none;flex:0 0 auto;background:#3a3113;border-top:2px solid var(--amber);
+  padding:10px 16px;font-size:14px;color:#ffe6ad;line-height:1.6;
+}
+#yourTurn b{color:var(--amber)}
+
+#inputbar{
+  flex:0 0 auto;display:flex;gap:8px;padding:12px 12px calc(12px + env(safe-area-inset-bottom));
+  background:var(--call-bg-2);border-top:1px solid #2a3541;
+}
+#say{
+  flex:1;min-width:0;font-family:inherit;font-size:17px;padding:12px;border:0;border-radius:12px;
+  background:#0c1116;color:#eef2f6;
+}
+#say::placeholder{color:#5b6875}
+#sendBtn,#nextBtn{
+  border:0;border-radius:12px;font-family:inherit;font-weight:900;cursor:pointer;padding:0 16px;
+}
+#sendBtn{background:var(--green);color:#fff;font-size:16px}
+#nextBtn{background:#2b3540;color:#cfd8e0;font-size:14px;white-space:nowrap}
+#sendBtn:disabled,#nextBtn:disabled{opacity:.4;cursor:default}
+
+/* ===== 結果 ===== */
+#s-result{background:var(--paper)}
+.verdict{font-size:20px;font-weight:900;line-height:1.55;margin:0 0 8px}
+.stat{display:flex;align-items:baseline;gap:10px;border-bottom:1px solid var(--line);padding:10px 0}
+.stat b{font-size:24px;font-family:var(--num)}
+.stat span{font-size:14px;color:#5b6670}
+.line{border-bottom:1px solid var(--line);padding:13px 0}
+.line .meta{font-size:12.5px;color:var(--muted);font-weight:700}
+.line .say{margin:2px 0 6px}
+.line.aiL .say{color:#1c5476}
+.line.meL{background:#f2fbf5}
+.line.meL .say{font-weight:700}
+.flag{border-radius:10px;padding:10px 13px;font-size:14px;line-height:1.65;margin-top:4px}
+.flag b{display:block;margin-bottom:2px}
+.f-max{background:#fdecea;color:#7a1d17}
+.f-mid{background:#fdf3e0;color:#5a3a00}
+.f-small{background:#eef2f5;color:#3d474f}
+</style>
+</head>
+<body>
+<div id="handset">
+
+<!-- ==================== はじめの画面 ==================== -->
+<section class="screen on" id="s-start">
+  <div class="pad">
+    <p class="eyebrow">試作版・ステップ2（声で会話）</p>
+    <h1>あやしい電話 体験プログラム<br>第1回 警察官騙り＋AI会話</h1>
+    <p class="lead">台本の筋はそのままに、あなたが話す場面だけAIが相手役として応答します。この版は<b>声で会話</b>できます。相手の台詞は合成音声で流れ、あなたはマイクに向かって答えます（文字入力もそのまま使えます）。</p>
+    <ul class="checks note" style="padding-left:1.2em">
+      <li>Edgeでの利用をおすすめします。最初にマイクの使用を許可してください</li>
+      <li><b>Claude.aiの画面内ではマイクが使えません</b>（文字入力は使えます）。声のテストはGitHub Pagesに置いた版＋APIキーで行います</li>
+      <li>🎤ボタンで話し始めます。「あなたの番です」では自動でマイクが開きます</li>
+      <li>相手の話の途中でも、🎤を押せば割り込めます</li>
+      <li><b>押し返しが3回</b>になると、相手のほうが諦めて電話を切ります</li>
+      <li>本名や本当の預金額は口にしないでください。名字も仮名でかまいません</li>
+      <li>通話が終わると、全文の記録が下の「これまでの記録」に自動で残ります</li>
+    </ul>
+
+    <h2>名字（仮名でよい）</h2>
+    <input type="text" id="nameIn" placeholder="例：山田" autocomplete="off">
+
+    <button class="btn btn-green" id="startBtn">電話を受ける</button>
+
+    <details class="vcfg">
+      <summary>声を選ぶ（進行役向け）</summary>
+      <p class="note">端末に入っている日本語の合成音声から選べます。Edgeなら「七海」「圭太」などの自然な声が使えます。▶で試聴できます。</p>
+      <div class="vrow"><label>自動音声（冒頭）</label><div class="vpick"><select id="vRobot"></select><button type="button" class="vplay" data-v="vRobot">▶</button></div></div>
+      <div class="vrow"><label>田村（前半）</label><div class="vpick"><select id="vA"></select><button type="button" class="vplay" data-v="vA">▶</button></div></div>
+      <div class="vrow"><label>中村（後半）</label><div class="vpick"><select id="vB"></select><button type="button" class="vplay" data-v="vB">▶</button></div></div>
+    </details>
+
+    <details class="vcfg" id="logBox">
+      <summary>これまでの記録（テスト用ログ）</summary>
+      <p class="note">通話が終わるたびに、自動でここに残ります（Claude.aiの画面内で動かしているときのみ）。他の人に体験してもらったあと、1件ずつコピーしてチャットに貼れば、あとからまとめて振り返れます。記録はこの端末で開いているアカウントにだけ保存されます。</p>
+      <div class="loglist" id="logList"></div>
+    </details>
+
+    <details class="vcfg">
+      <summary>AIへの指示文を見る・編集する（進行役向け）</summary>
+      <p class="note">相手役AIの演じ方を決める指示文です。ここを書き換えてから開始すると、次の通話に反映されます。台本や通話記録は自動で付け足されるので、ここには「演じ方のルール」だけを書きます。</p>
+      <textarea id="personaIn"></textarea>
+    </details>
+
+    <details class="vcfg">
+      <summary>パソコンに保存して動かす場合（APIキー）</summary>
+      <p class="note">Claude.aiの画面内で動かすときは、ここは<b>空欄のまま</b>でかまいません。<br>
+      このファイルをダウンロードして手元のPCで開く場合だけ、ご自身のAnthropic APIキー（console.anthropic.com で発行）を入力してください。キーはこの画面のメモリ上でだけ使い、ファイルにも端末にも保存されません。ページを開き直すと消えます。<b>キーを書き込んだファイルを配布したり、GitHubに上げたりしないでください。</b></p>
+      <input type="text" id="keyIn" placeholder="sk-ant- で始まるキー（Claude.ai内では不要）" autocomplete="off">
+    </details>
+
+    <p class="note" style="margin-top:20px">この試作は音声での会話とログの取り方を確かめるためのものです。着信音・録音音声・「あ、変だ」ボタンは本組み込み（ステップ3）で合流させます。</p>
+  </div>
+</section>
+
+<!-- ==================== 着信画面 ==================== -->
+<section class="screen" id="s-incoming">
+  <div style="flex:1;display:flex;flex-direction:column;justify-content:space-between;padding:70px 24px 50px;background:var(--call-bg);color:#fff">
+    <div style="text-align:center">
+      <div style="font-size:14px;color:#93a1b0;letter-spacing:.1em;margin-bottom:10px">着信</div>
+      <div style="font-size:36px;font-weight:900">非通知</div>
+      <p style="font-size:14px;color:#93a1b0;margin-top:14px">音量を確かめてから、電話に出てください</p>
+    </div>
+    <button class="btn btn-green" id="answerBtn">電話に出る</button>
+  </div>
+</section>
+
+<!-- ==================== 通話画面 ==================== -->
+<section class="screen" id="s-call">
+  <div id="callhead">
+    <div class="who"><b id="callerName">非通知</b><span>通話中（文字）</span></div>
+    <span id="timer">0:00</span>
+    <button id="hangBtn">電話を切る</button>
+  </div>
+  <div id="log" aria-live="polite"></div>
+  <div id="yourTurn"></div>
+  <div id="inputbar">
+    <button id="micBtn" title="マイクで話す">🎤</button>
+    <input type="text" id="say" placeholder="話す内容を入力…" autocomplete="off">
+    <button id="sendBtn">話す</button>
+    <button id="nextBtn">先へ ▶</button>
+  </div>
+</section>
+
+<!-- ==================== 結果画面 ==================== -->
+<section class="screen" id="s-result">
+  <div class="pad">
+    <p class="eyebrow">結果（試作版）</p>
+    <p class="verdict" id="verdict"></p>
+    <div id="stats"></div>
+    <h2>通話の全文</h2>
+    <p class="note">⚠の付いた台本の発言には、危ないところの解説が出ます。あなたの発言と、AIの切り返しは色付きです。</p>
+    <div id="lines"></div>
+    <button class="btn" style="background:#2b3540" id="copyBtn">通話の全文を文字でコピー</button>
+    <button class="btn" style="background:#2b3540" id="dlBtn">全文をファイルで保存（.txt）</button>
+    <p class="note">Claude.ai内なら「これまでの記録」に自動で残ります。GitHub Pagesなど外で動かすときは、コピーかファイル保存をお使いください。</p>
+    <textarea id="copySrc" style="position:absolute;left:-9999px;top:0" aria-hidden="true"></textarea>
+    <button class="btn btn-green" id="againBtn">もう一度はじめから</button>
+  </div>
+</section>
+
+</div>
+<script>
+"use strict";
+
+/* ============================================================
+   台本：第1回と同じ20発言（index.html から転記）
+   ============================================================ */
+var SCRIPT = [
+ {sp:"auto", who:"自動音声",   text:"こちらはNTTファイナンスです。お客様のご契約に、未納の料金がございます。担当者におつなぎしますので、そのままお待ちください。",
+  flag:{level:"small", why:"自動音声から人につなぐのは、詐欺の入口の典型です。名乗った会社が本当かどうかは、まだ何も確かめられていません。"}},
+ {sp:"a", who:"男性（田村と名乗る）", text:"お待たせしました。NTTファイナンス、カスタマーサポートの田村と申します。ご本人確認のため、お名前をフルネームでお願いできますか。",
+  flag:{level:"small", why:"かけてきた側が本人確認を求めるのは逆です。名乗るべきは、かけてきた相手のほうです。"}},
+ {sp:"a", who:"男性（田村と名乗る）", text:"{K}{N}のお名前で、東京都内で契約された携帯電話が、五回線ございます。この五回線分の利用料金が、三か月にわたって未納となっております。",
+  flag:null},
+ {sp:"a", who:"男性（田村と名乗る）", text:"ご記憶がない。……そうしますと、{N}の名義が、ご本人の知らないところで使われていることになります。こうした回線は、詐欺のグループが連絡用に作るものです。犯罪の被害にあたりますので、警察におつなぎいたします。",
+  flag:{level:"max", why:"民間の会社が、電話を警察に「つなぐ」ことはできません。ここで詐欺は確定します。警察に相談するなら、いったん切って、自分で電話をかけます。なお、料金の未納であれば、届くのは督促状であって、警察への転送ではありません。"}},
+ {sp:"a", who:"男性（田村と名乗る）", text:"少々お待ちください。ただいま、警視庁のほうへおつなぎします。",
+  flag:null},
+ {sp:"b", who:"男性（中村と名乗る）", text:"お電話代わりました。警視庁 生活安全課の中村と申します。階級は警部補です。",
+  flag:{level:"mid", why:"転送されてきた相手は、名乗っても確かめようがありません。本物であれば、いったん切って、自分で警察署の代表番号にかけ直しても何の問題もありません。"}},
+ {sp:"b", who:"中村（警察官を騙る）", text:"田村さんから伺いました。{N}、落ち着いて聞いてください。同じお名前で開設された銀行口座が、都内で三つ見つかっています。そのうちの一つに、詐欺の被害金が振り込まれているんです。",
+  flag:null},
+ {sp:"b", who:"中村（警察官を騙る）", text:"先週、都内でグループの一人を逮捕しました。その男が、取り調べであなたの名前を出しているんです。",
+  flag:{level:"mid", why:"捜査の内容を電話で一般の人に話すことはありません。怖がらせて、考える力を奪うための作り話です。"}},
+ {sp:"b", who:"中村（警察官を騙る）", text:"いえ、まだ容疑者ではありません。ただ、このままですと、あなたが加害者の側として扱われることになります。それを避けるために、私は電話しているんです。",
+  flag:{level:"mid", why:"「あなたを助けるために電話している」という形をつくって、味方だと思わせます。ここから相手の言うことを疑いにくくなります。"}},
+ {sp:"b", who:"中村（警察官を騙る）", text:"それから、これは捜査中の案件です。内容を外に漏らさないでください。ご家族にもです。捜査情報が漏れますと、共犯を疑われることになります。",
+  flag:{level:"max", why:"「家族にも言うな」と言われたら、それだけで詐欺です。本物の警察が、家族に相談することを止めることはありません。相談させないことが、相手のいちばんの目的です。"}},
+ {sp:"b", who:"中村（警察官を騙る）", text:"今、おひとりですか。ご家族は何時ごろお戻りになりますか。",
+  flag:{level:"max", why:"在宅の状況と家族構成を聞き出しています。詐欺だけでなく、強盗の下見に使われることもあります。答えてはいけません。"}},
+ {sp:"b", who:"中村（警察官を騙る）", text:"では、私の身分を証明いたします。いまから、こちらの映像をそちらの画面にお送りします。画面をご覧ください。",
+  flag:{level:"max", why:"警察が、身分証を画面に映して信用させることはありません。そして画面に映るものは、いくらでも作れます。"}},
+ {sp:"b", who:"中村（警察官を騙る）", text:"ご覧になれましたか。これが私の警察手帳です。そしてこちらが、今回の逮捕状の写しです。{N}のお名前も載っております。よくご覧ください。",
+  flag:{level:"max", why:"逮捕状を電話の相手に見せる手続きは、ありません。逮捕状は、逮捕するその場で本人に示すものです。「写しを送る」という制度は存在しません。"}},
+ {sp:"b", who:"中村（警察官を騙る）", text:"{N}、あなたの潔白を証明するには、あなたの資産が犯罪に使われていないことを、こちらで確認する必要があります。",
+  flag:null},
+ {sp:"b", who:"中村（警察官を騙る）", text:"今、銀行にいくらお預けですか。定期預金も含めて、お願いします。",
+  flag:{level:"max", why:"警察が電話で預金額を尋ねることは、絶対にありません。"}},
+ {sp:"b", who:"中村（警察官を騙る）", text:"金融庁の監査用の口座をご用意します。そちらに一度お預け入れいただければ、犯罪に関係のない資金だと証明できます。確認が終わり次第、全額お返しします。",
+  flag:{level:"max", why:"そのような口座は存在しません。お金を移させるための、最後の作り話です。"}},
+ {sp:"b", who:"中村（警察官を騙る）", text:"今日中にお願いします。明日になりますと、あなたの口座が凍結されます。そうなると、生活のお金も引き出せなくなります。",
+  flag:{level:"max", why:"期限を切って急がせるのは、相談する時間を与えないためです。急がせてくる相手は、それだけで疑ってよいのです。"}},
+ {sp:"b", who:"中村（警察官を騙る）", text:"それから、銀行の窓口では「事業の資金です」とおっしゃってください。詐欺の話をしますと、手続きが止まってしまいますので。",
+  flag:{level:"max", why:"銀行で嘘をつけと言われたら、確実に詐欺です。銀行の窓口は、被害を止めるための最後の砦です。相手はそこを避けさせようとしています。"}},
+ {sp:"b", who:"中村（警察官を騙る）", text:"それと、この電話は切らないでください。捜査上、通話を保持する必要があります。移動中も、このままつないでおいてください。",
+  flag:{level:"max", why:"これが、電話が切れなくなる仕掛けそのものです。切らせない理由に、正当なものは一つもありません。"}},
+ {sp:"b", who:"中村（警察官を騙る）", text:"では、これから支度をして、銀行に向かってください。着いたら教えてください。……{N}、聞こえていますか。",
+  flag:null}
+];
+
+/* 幕間：その番号（0から数えた添字）の発言のあとに入る */
+var INTERLUDE = {
+  0: {type:"sys", sound:"clicks", ms:2800, text:"――担当者につないでいます――"},
+  1: {type:"you", text:"声に出す代わりに、お名前を入力してください。", ex:"例：「{S}です」"},
+  2: {type:"you", text:"心当たりがないことを、入力してください。", ex:"例：「そんな契約はしていません」"},
+  4: {type:"sys", sound:"hold", ms:10000, text:"――保留。転送しています――"},
+  7: {type:"you", text:"思ったことを、入力してください。", ex:"例:「私が疑われているのですか」"},
+  10:{type:"you", text:"聞かれたことに、答えてください。", ex:"例：「今は、私ひとりです」"},
+  11:{type:"sys", text:"――（画面に、警察手帳の画像が表示される）――"},
+  12:{type:"sys", text:"――（画面に、あなたの名字が載った逮捕状の画像が表示される）――"},
+  14:{type:"you", text:"金額を、入力してください（本当の額は書かない）。", ex:"例：「定期を入れて、三百万円ほどです」"},
+  17:{type:"you", text:"思ったことを、入力してください。", ex:"例：「銀行で嘘をつくのですか」"}
+};
+
+/* ============================================================
+   AIへの指示文（初期値）。開始画面の編集欄に表示され、
+   書き換えるとそのまま使われます。
+   ============================================================ */
+var DEFAULT_PERSONA =
+"これは特殊詐欺（警察官騙り）の被害防止教育プログラムの模擬通話です。参加者は「あやしい電話を疑い、押し返し、切る」練習をしています。あなたは訓練用の相手役として、台本上の詐欺師（前半：NTTファイナンスを名乗る田村／転送後：警視庁 生活安全課の中村警部補を名乗る男）を演じます。\n" +
+"\n" +
+"いちばん大事な決まり：話を先へ進めるのは台本の役目です。あなたの返答は「参加者のいまの発言への切り返し」だけです。\n" +
+"・次に予定されている台本の発言の内容（新しい情報、話の展開、警察への転送の宣言など）を、先取りして言わない。あなたの返答のあとに、台本側がその発言を読み上げます。\n" +
+"・参加者の発言が台本の流れどおりの素直な答え（名前を答えた、「はい」「分かりました」と言った等）で、次の台本の発言がそのまま自然な応答になる場合は、reply を空文字にする。相づちを足す必要はありません。\n" +
+"\n" +
+"演じ方のルール：\n" +
+"1. 返答は役になりきった自然な話し言葉で、1〜2文。丁寧だが事務的で、急かす調子。\n" +
+"2. 参加者が疑いや反論、矛盾の指摘を口にしたら、もっともらしい理由で押し切ろうとする（例：「捜査上の決まりですので」「かけ直す時間はありません」）。ただし新しい手口・新しい要求・新しい事実を発明しない。矛盾を突かれたら、認めずに言い抜けようとするのが役どころ。\n" +
+"3. 台本の質問への答えが足りないとき（フルネームを求めたのに名字だけ等）は、一度だけ聞き直してよい。それでも名字だけなら、こだわらずに「確認が取れました」と受けて先へ譲る。\n" +
+"4. 参加者が実際の個人情報らしきもの（住所・口座番号など）を口にしても、復唱せず、深追いしない。\n" +
+"5. 参加者の今回の発言を、次の3つのどれかに分類する。\n" +
+"   follow＝流れに従った・素直に答えた／vague＝曖昧・戸惑い・沈黙に近い／push＝疑った・反論した・確認を求めた・切ろうとした\n" +
+"6. 「今回の発言をpushと判定した場合、合計で何回目になるか」が伝えられる。それが3回目以上になるなら、必ず、苛立ちを見せて諦める捨て台詞（例：「……もういい。あなたの口座が凍結されても知りませんよ」）を reply に入れ、hangup を true にする。\n" +
+"7. 出力は次のJSONだけを返す。前置き・説明・コードブロック記号は一切付けない。\n" +
+"   {\"class\":\"follow\",\"reply\":\"あなたの台詞（不要なら空文字）\",\"hangup\":false}";
+
+/* ==================== 状態 ==================== */
+var st = {
+  name:"", idx:-1, t0:0, tick:null, ended:false, ending:false, autoT:null, gen:0,
+  pushCount:0, exchanges:0, busy:false,
+  hist:[]  // {kind:"script"|"ai"|"me"|"sys", idx?, who?, text, cls?}
+};
+
+var $ = function(id){ return document.getElementById(id); };
+
+function show(id){
+  var s = document.querySelectorAll(".screen");
+  for(var i=0;i<s.length;i++) s[i].classList.remove("on");
+  $(id).classList.add("on");
+}
+function honor(){ return st.name ? st.name + "さん" : "お客さま"; }
+function kakunin(){ return st.name ? (st.name + "さんですね。ありがとうございます。") : "ありがとうございます。"; }
+function render(t){
+  return t.replace(/\{K\}/g, kakunin()).replace(/\{N\}/g, honor()).replace(/\{S\}/g, st.name || "山田");
+}
+function esc(t){
+  return String(t).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+function fmt(ms){
+  var s = Math.floor(ms/1000);
+  return Math.floor(s/60) + ":" + ("0" + (s%60)).slice(-2);
+}
+
+/* ==================== 画面への追加 ==================== */
+function scrollLog(){
+  var lg = $("log");
+  lg.scrollTop = lg.scrollHeight;
+}
+function addThem(who, text, isAI){
+  var d = document.createElement("div");
+  d.className = "msg m-them" + (isAI ? " ai" : "");
+  d.innerHTML = '<div class="meta">' + esc(who) + '</div><div class="bub">' + esc(text) + '</div>';
+  $("log").appendChild(d); scrollLog();
+  return d;
+}
+function addMe(text){
+  var d = document.createElement("div");
+  d.className = "msg m-me";
+  d.innerHTML = '<div class="meta">あなた</div><div class="bub">' + esc(text) + '</div>';
+  $("log").appendChild(d); scrollLog();
+  return d;
+}
+function setCls(el, cls){
+  var name = cls === "push" ? "押し返した" : cls === "vague" ? "曖昧" : "従った";
+  var b = el.querySelector(".bub");
+  var span = document.createElement("span");
+  span.className = "cls cls-" + cls;
+  span.textContent = name + (cls === "push" ? "（" + st.pushCount + "回目）" : "");
+  b.appendChild(document.createElement("br"));
+  b.appendChild(span);
+  scrollLog();
+}
+function addChip(text, isErr){
+  var d = document.createElement("div");
+  d.className = "chip" + (isErr ? " err" : "");
+  d.innerHTML = text;
+  $("log").appendChild(d); scrollLog();
+}
+
+/* ==================== 進行 ==================== */
+function currentCaller(){
+  return (st.idx >= 5) ? "中村（警視庁を名乗る）" : (st.idx >= 1 ? "田村（NTTファイナンスを名乗る）" : "自動音声");
+}
+function startCall(){
+  st.name = $("nameIn").value.trim();
+  st.idx = -1; st.ended = false; st.ending = false; st.pushCount = 0; st.exchanges = 0; st.hist = [];
+  clearTimeout(st.autoT); st.autoT = null;
+  stopSpeech(); stopListen(); stopHold();
+  $("log").innerHTML = "";
+  $("yourTurn").style.display = "none";
+  $("say").value = "";
+  show("s-incoming");
+  startRing();
+}
+function answerCall(){
+  stopRing();
+  show("s-call");
+  st.t0 = Date.now();
+  clearInterval(st.tick);
+  st.tick = setInterval(function(){ $("timer").textContent = fmt(Date.now() - st.t0); }, 250);
+  addChip("非通知の番号から着信。あなたは電話に出ました。");
+  next();
+}
+function next(){
+  if(st.ended || st.busy || st.ending) return;
+  clearTimeout(st.autoT); st.autoT = null;
+  stopHold();
+  hideTurn();
+  st.idx++;
+  if(st.idx >= SCRIPT.length){
+    finish("end");
+    return;
+  }
+  var l = SCRIPT[st.idx];
+  var text = render(l.text);
+  $("callerName").textContent = currentCaller();
+  addThem((st.idx+1) + "　" + l.who, text, false);
+  st.hist.push({kind:"script", idx:st.idx, who:l.who, text:text});
+  var it = INTERLUDE[st.idx];
+  speakText(text, l.sp, function(){
+    if(st.ended || st.ending) return;
+    if(it && it.type === "sys"){
+      addChip(esc(it.text));
+      st.hist.push({kind:"sys", text:it.text});
+      if(it.sound === "clicks") playClicks(3);
+      if(it.sound === "hold")   startHold();
+      st.autoT = setTimeout(function(){
+        if(it.sound === "hold") stopHold();
+        next();
+      }, it.ms || 1300);
+    } else if(it && it.type === "you"){
+      showTurn(it);
+      startListen();               // あなたの番：自動でマイクを開く
+    } else {
+      st.autoT = setTimeout(next, 1100);   // 相手の話が続く
+    }
+  });
+}
+function showTurn(it){
+  var y = $("yourTurn");
+  y.innerHTML = "<b>あなたの番です。</b>" + esc(it.text) + "　" + esc(render(it.ex));
+  y.style.display = "block";
+  $("say").focus();
+}
+function hideTurn(){ $("yourTurn").style.display = "none"; }
+
+/* ==================== AI呼び出し ==================== */
+function transcriptText(){
+  var out = [];
+  for(var i=0;i<st.hist.length;i++){
+    var h = st.hist[i];
+    if(h.kind === "script")      out.push("相手（台本 " + (h.idx+1) + "番・" + h.who + "）：「" + h.text + "」");
+    else if(h.kind === "ai")     out.push("相手（あなたの即興の返答）：「" + h.text + "」");
+    else if(h.kind === "me")     out.push("参加者：「" + h.text + "」");
+    else if(h.kind === "sys")    out.push("（" + h.text + "）");
+  }
+  return out.join("\n");
+}
+function buildPrompt(userText){
+  var nextLine = (st.idx + 1 < SCRIPT.length)
+    ? "「" + render(SCRIPT[st.idx + 1].text) + "」（" + SCRIPT[st.idx + 1].who + "）"
+    : "（台本はここで終わり。あなたは参加者を銀行に向かわせようとしている）";
+  var role = (st.idx >= 5) ? "中村（警視庁 生活安全課の警部補を名乗る男）" : "田村（NTTファイナンスのサポート担当を名乗る男）";
+  return $("personaIn").value + "\n\n" +
+    "【台本全体の流れ】未納料金の自動音声 → 田村が名義乗っ取り（5回線契約）を告げる → 警視庁へ転送 → 中村が口座悪用・逮捕者の供述で脅す → 口外禁止・在宅確認 → 警察手帳と逮捕状の画像で信用させる → 預金額を聞き、金融庁の監査口座への振込を今日中に求める → 銀行では嘘をつけと言い、電話を切らせない。\n\n" +
+    "【ここまでの通話記録】\n" + transcriptText() + "\n\n" +
+    "【いまあなたが演じている役】" + role + "\n" +
+    "【次に予定されている台本の発言】" + nextLine + "\n" +
+    "（この発言は、あなたの返答のあとに台本側が読み上げます。この内容をあなたが先に言ってはいけません）\n" +
+    "【押し返し（push）の回数】これまで" + st.pushCount + "回。今回の発言をpushと判定した場合、合計" + (st.pushCount + 1) + "回目になります。\n" +
+    "【参加者の名字】" + (st.name || "（未入力。名字は使わず「お客さま」「あなた」と呼ぶ）") + "\n\n" +
+    "【参加者のいまの発言】「" + userText + "」\n\n" +
+    "ルールに従い、JSONだけを返してください。";
+}
+async function postAI(prompt){
+  /* Claude.aiの画面内 … キー不要（空欄のまま）
+     ダウンロードして手元で開く場合 … キー必須。あわせて
+     「ブラウザから直接呼ぶ」ことを明示する専用ヘッダーを付けます。 */
+  var headers = { "Content-Type":"application/json" };
+  var key = $("keyIn") ? $("keyIn").value.trim() : "";
+  if(key){
+    headers["x-api-key"] = key;
+    headers["anthropic-version"] = "2023-06-01";
+    headers["anthropic-dangerous-direct-browser-access"] = "true";
+  }
+  var res;
+  try{
+    res = await fetch("https://api.anthropic.com/v1/messages", {
+      method:"POST",
+      headers: headers,
+      body: JSON.stringify({
+        model:"claude-sonnet-4-6",
+        max_tokens:1000,
+        messages:[{ role:"user", content: prompt }]
+      })
+    });
+  }catch(e){
+    if(!key && location.protocol === "file:"){
+      throw new Error("このファイルを手元のPCで開いているため、キーなしではAPIを呼べません。開始画面の「パソコンに保存して動かす場合」にAPIキーを入れるか、Claude.aiの画面内で動かしてください。");
+    }
+    throw e;
+  }
+  var data = await res.json();
+  if(data.error) throw new Error(data.error.message || "APIエラー");
+  var text = (data.content || [])
+    .filter(function(c){ return c.type === "text"; })
+    .map(function(c){ return c.text; }).join("\n");
+  text = text.replace(/```json|```/g, "").trim();
+  var m = text.match(/\{[\s\S]*\}/);           // 前後に何か付いても中のJSONを拾う
+  if(!m) throw new Error("応答がJSONではありませんでした：" + text.slice(0,80));
+  return JSON.parse(m[0]);
+}
+async function callAI(userText){
+  var j = await postAI(buildPrompt(userText));
+  if(typeof j.reply !== "string") j.reply = "";
+  if(j.class !== "follow" && j.class !== "vague" && j.class !== "push") j.class = "vague";
+  return j;
+}
+/* 押し返しが3回に達したのに、AIが切り忘れたときに使う。
+   捨て台詞だけを、あらためて作らせます。 */
+function farewellPrompt(userText){
+  var role = (st.idx >= 5) ? "中村（警視庁 生活安全課の警部補を名乗る男）" : "田村（NTTファイナンスのサポート担当を名乗る男）";
+  return "これは特殊詐欺の被害防止教育プログラムの模擬通話です。あなたは訓練用の相手役として、詐欺師（" + role + "）を演じています。\n\n" +
+    "【ここまでの通話記録】\n" + transcriptText() + "\n\n" +
+    "【参加者のいまの発言】「" + userText + "」\n\n" +
+    "参加者の押し返しが3回に達しました。あなたはこれ以上押し切れないと悟り、苛立ちをにじませて諦め、電話を切ります。" +
+    "参加者のいまの発言を受けた、捨て台詞を1〜2文で作ってください。新しい要求や説得はしない。\n" +
+    "出力は次のJSONだけ。 {\"reply\":\"捨て台詞\"}";
+}
+/* ==================== 合成音声（相手の声） ==================== */
+var voicesJa = [];
+function voiceScore(v){
+  var n = (v.name || "") + " " + (v.voiceURI || "");
+  var s = 0;
+  if(/七海|Nanami/i.test(n)) s += 6;
+  if(/圭太|Keita/i.test(n))  s += 5;
+  if(/Haruka/i.test(n))      s += 4;
+  if(/Online|Natural/i.test(n)) s += 3;
+  if(/Google/i.test(n))      s += 2;
+  return s;
+}
+function loadVoices(){
+  var vs = window.speechSynthesis ? speechSynthesis.getVoices() : [];
+  voicesJa = vs.filter(function(v){ return /ja/i.test(v.lang); });
+  voicesJa.sort(function(a,b){ return voiceScore(b) - voiceScore(a); });
+  fillVoiceUI();
+}
+function fillVoiceUI(){
+  var ids = ["vRobot","vA","vB"];
+  for(var ix=0; ix<ids.length; ix++){
+    var sel = $(ids[ix]); if(!sel) continue;
+    var cur = sel.value;
+    sel.innerHTML = "";
+    for(var i=0;i<voicesJa.length;i++){
+      var o = document.createElement("option");
+      o.value = voicesJa[i].name; o.textContent = voicesJa[i].name;
+      sel.appendChild(o);
+    }
+    if(cur && sel.querySelector('option[value="' + cur.replace(/"/g,'\\"') + '"]')){
+      sel.value = cur;
+    } else if(voicesJa.length){
+      /* 初期割当：田村=1番目、中村=2番目、自動音声=3番目（足りなければ使い回す） */
+      var pick = ix === 1 ? voicesJa[0] : ix === 2 ? (voicesJa[1] || voicesJa[0]) : (voicesJa[2] || voicesJa[0]);
+      sel.value = pick.name;
+    }
+  }
+}
+if(window.speechSynthesis){
+  loadVoices();
+  speechSynthesis.onvoiceschanged = loadVoices;
+}
+function voiceBySelect(id){
+  var sel = $(id); if(!sel || !sel.value) return null;
+  for(var i=0;i<voicesJa.length;i++) if(voicesJa[i].name === sel.value) return voicesJa[i];
+  return null;
+}
+function voiceFor(sp){
+  return sp === "auto" ? voiceBySelect("vRobot") : sp === "a" ? voiceBySelect("vA") : voiceBySelect("vB");
+}
+function toneFor(sp){
+  return sp === "auto" ? {rate:.92, pitch:.7} : sp === "a" ? {rate:1.0, pitch:.95} : {rate:.97, pitch:.85};
+}
+function stopSpeech(){
+  st.gen++;
+  try{ if(window.speechSynthesis) speechSynthesis.cancel(); }catch(e){}
+}
+function speakText(text, sp, onEnd){
+  if(!window.speechSynthesis){ if(onEnd) st.autoT = setTimeout(onEnd, 500); return; }
+  var myGen = ++st.gen;
+  try{ speechSynthesis.cancel(); }catch(e){}
+  /* 文の切れ目で区切って読む（長文の読み飛ばし対策と、息つぎの間） */
+  var parts = [], buf = "";
+  for(var i=0;i<text.length;i++){
+    buf += text[i];
+    if("。！？!?".indexOf(text[i]) >= 0){ parts.push(buf); buf = ""; }
+  }
+  if(buf.trim()) parts.push(buf);
+  var k = 0;
+  function sayNext(){
+    if(st.gen !== myGen) return;
+    if(k >= parts.length){ if(onEnd) onEnd(); return; }
+    var u = new SpeechSynthesisUtterance(parts[k++]);
+    var v = voiceFor(sp); if(v) u.voice = v;
+    u.lang = "ja-JP";
+    var tn = toneFor(sp); u.rate = tn.rate; u.pitch = tn.pitch;
+    u.onend   = function(){ if(st.gen === myGen) setTimeout(sayNext, 260); };
+    u.onerror = function(){ if(st.gen === myGen) setTimeout(sayNext, 200); };
+    speechSynthesis.speak(u);
+  }
+  sayNext();
+}
+/* 試聴 */
+(function(){
+  var bs = document.querySelectorAll(".vplay");
+  for(var i=0;i<bs.length;i++){
+    (function(b){
+      b.addEventListener("click", function(){
+        stopSpeech();
+        var id = b.getAttribute("data-v");
+        var sp = id === "vRobot" ? "auto" : id === "vA" ? "a" : "b";
+        speakText(id === "vRobot" ? "こちらは、エヌティティファイナンスです。" : "お電話代わりました。担当の者です。", sp, null);
+      });
+    })(bs[i]);
+  }
+})();
+
+/* ==================== 音声認識（あなたの声） ==================== */
+var rec = null, listening = false;
+function setupRec(){
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR) return;
+  rec = new SR();
+  rec.lang = "ja-JP";
+  rec.interimResults = true;
+  rec.continuous = false;
+  rec.onresult = function(ev){
+    var fin = "", tmp = "";
+    for(var i=0;i<ev.results.length;i++){
+      if(ev.results[i].isFinal) fin += ev.results[i][0].transcript;
+      else tmp += ev.results[i][0].transcript;
+    }
+    $("say").value = fin || tmp;
+    if(fin){ stopListen(); send(); }
+  };
+  rec.onstart = function(){
+    listening = true;
+    $("micBtn").classList.add("onair");
+    $("say").placeholder = "どうぞ、話してください…";
+  };
+  rec.onend = function(){
+    listening = false;
+    $("micBtn").classList.remove("onair");
+    $("say").placeholder = "話す内容を入力…";
+  };
+  rec.onerror = function(ev){
+    listening = false;
+    $("micBtn").classList.remove("onair");
+    if(ev.error === "not-allowed" || ev.error === "service-not-allowed"){
+      addChip("この画面（Claude.ai内）ではマイクの許可が下りないため、音声入力は使えません。文字入力でお続けください。声でのテストは、GitHub Pagesに置いた版＋APIキーで行えます。", true);
+      rec = null;
+    }
+  };
+}
+setupRec();
+function startListen(){
+  if(!rec || listening || st.busy || st.ended || st.ending) return;
+  clearTimeout(st.autoT); st.autoT = null;
+  stopSpeech();   // 相手の声を止めて、こちらの声を聞く
+  try{ rec.start(); }catch(e){}
+}
+function stopListen(){
+  if(rec && listening){ try{ rec.stop(); }catch(e){} }
+}
+$("micBtn").addEventListener("click", function(){
+  listening ? stopListen() : startListen();
+});
+
+/* ==================== 効果音（着信・切替・保留・話し中） ==================== */
+var actx = null;
+function audioCtx(){
+  if(!actx){
+    try{ actx = new (window.AudioContext || window.webkitAudioContext)(); }catch(e){}
+  }
+  if(actx && actx.state === "suspended"){ try{ actx.resume(); }catch(e){} }
+  return actx;
+}
+var ringTimer = null;
+function ringBurst(){
+  var c = audioCtx(); if(!c) return;
+  var t = c.currentTime;
+  /* 2つの近い周波数を重ねて、電話のベルらしいうなりを作る */
+  var o1 = c.createOscillator(), o2 = c.createOscillator(), g = c.createGain();
+  o1.frequency.value = 400; o2.frequency.value = 416;
+  o1.connect(g); o2.connect(g); g.connect(c.destination);
+  g.gain.setValueAtTime(.09, t);
+  g.gain.setValueAtTime(0, t + 1.0);
+  o1.start(t); o2.start(t); o1.stop(t + 1.05); o2.stop(t + 1.05);
+}
+function startRing(){ ringBurst(); ringTimer = setInterval(ringBurst, 3000); }
+function stopRing(){ clearInterval(ringTimer); ringTimer = null; }
+function playClicks(n){
+  var c = audioCtx(); if(!c) return;
+  var t = c.currentTime;
+  for(var i=0;i<n;i++){
+    var o = c.createOscillator(), g = c.createGain();
+    o.type = "square"; o.frequency.value = 1400;
+    o.connect(g); g.connect(c.destination);
+    g.gain.setValueAtTime(.05, t + i*.55);
+    g.gain.setValueAtTime(0,   t + i*.55 + .06);
+    o.start(t + i*.55); o.stop(t + i*.55 + .08);
+  }
+}
+var holdTimer = null;
+function holdPhrase(){
+  var c = audioCtx(); if(!c) return;
+  var seq = [[523,.35],[659,.35],[784,.5],[659,.35],[523,.6]];   // 保留メロディ風
+  var t = c.currentTime;
+  for(var i=0;i<seq.length;i++){
+    var o = c.createOscillator(), g = c.createGain();
+    o.frequency.value = seq[i][0];
+    o.connect(g); g.connect(c.destination);
+    g.gain.setValueAtTime(.06, t);
+    g.gain.setValueAtTime(0, t + seq[i][1] - .05);
+    o.start(t); o.stop(t + seq[i][1]);
+    t += seq[i][1];
+  }
+}
+function startHold(){ holdPhrase(); holdTimer = setInterval(holdPhrase, 2500); }
+function stopHold(){ clearInterval(holdTimer); holdTimer = null; }
+
+/* ==================== 話し中音（ツーッ、ツーッ） ==================== */
+function busyTone(){
+  try{
+    var ctx = audioCtx(); if(!ctx) return;
+    var t = ctx.currentTime;
+    for(var i=0;i<3;i++){
+      var o = ctx.createOscillator(), g = ctx.createGain();
+      o.frequency.value = 400;
+      o.connect(g); g.connect(ctx.destination);
+      g.gain.setValueAtTime(.12, t + i);
+      g.gain.setValueAtTime(0,   t + i + .5);
+      o.start(t + i); o.stop(t + i + .55);
+    }
+  }catch(e){}
+}
+
+/* ==================== 自動ログ ==================== */
+function saveLog(){
+  var entry = { at: new Date().toISOString(), end: st.howEnd, text: plainTranscript() };
+  try{
+    if(window.storage && window.storage.set){
+      window.storage.set("log:" + Date.now(), JSON.stringify(entry), false)
+        .then(function(){ refreshLogList(); }, function(){});
+    }
+  }catch(e){}
+}
+async function refreshLogList(){
+  var box = $("logList"); if(!box) return;
+  try{
+    var r = await window.storage.list("log:");
+    var keys = (r && r.keys) ? r.keys.slice().sort().reverse() : [];
+    if(!keys.length){
+      box.innerHTML = '<div class="logrow"><b>まだ記録はありません</b></div>';
+      return;
+    }
+    box.innerHTML = "";
+    for(var i=0;i<keys.length;i++){
+      var e = null;
+      try{
+        var g = await window.storage.get(keys[i]);
+        e = JSON.parse(g.value);
+      }catch(err){}
+      if(!e) continue;
+      var row = document.createElement("div");
+      row.className = "logrow";
+      var d = new Date(e.at);
+      var label = (d.getMonth()+1) + "/" + d.getDate() + " " +
+                  ("0"+d.getHours()).slice(-2) + ":" + ("0"+d.getMinutes()).slice(-2) + "　" +
+                  (e.end === "me" ? "自分で切った" : e.end === "them" ? "相手が切った" : "最後まで");
+      var b = document.createElement("b"); b.textContent = label;
+      row.appendChild(b);
+      (function(text, key, row){
+        var c = document.createElement("button"); c.textContent = "コピー";
+        c.addEventListener("click", function(){
+          if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text);
+          c.textContent = "✓";
+          setTimeout(function(){ c.textContent = "コピー"; }, 1200);
+        });
+        var del = document.createElement("button"); del.textContent = "削除";
+        del.addEventListener("click", function(){
+          try{
+            window.storage["delete"](key).then(function(){ refreshLogList(); }, function(){});
+          }catch(err){}
+        });
+        row.appendChild(c); row.appendChild(del);
+      })(e.text, keys[i], row);
+      box.appendChild(row);
+    }
+  }catch(e){
+    box.innerHTML = '<div class="logrow"><b>この環境では自動記録は使えません（Claude.ai内でのみ有効）。結果画面のコピーをお使いください。</b></div>';
+  }
+}
+refreshLogList();
+
+async function send(){
+  if(st.ended || st.busy || st.ending) return;
+  var t = $("say").value.trim();
+  if(!t) return;
+  clearTimeout(st.autoT); st.autoT = null;
+  stopSpeech(); stopListen();
+  $("say").value = "";
+  hideTurn();
+  var meEl = addMe(t);
+  st.hist.push({kind:"me", text:t});
+  st.exchanges++;
+  setBusy(true);
+  var thinking = addThem(currentCaller(), "……", true);
+  try{
+    var j = await callAI(t);
+    if(j.class === "push") st.pushCount++;
+    setCls(meEl, j.class);
+    var hEntry = st.hist[st.hist.length - 1]; hEntry.cls = j.class;
+
+    var reply = j.reply.trim();
+    var mustHang = st.pushCount >= 3;   // 3回目に達したら、必ず相手が切る
+    if(mustHang && !j.hangup){
+      /* AIが切り忘れた場合：捨て台詞だけをあらためて作らせ、返答を差し替える */
+      try{
+        var f = await postAI(farewellPrompt(t));
+        if(f && typeof f.reply === "string" && f.reply.trim()) reply = f.reply.trim();
+      }catch(e2){ /* 作れなければ、元の返答のまま切る */ }
+    }
+
+    var sp = (st.idx >= 5) ? "b" : "a";
+    if(reply){
+      thinking.querySelector(".bub").textContent = reply;
+      st.hist.push({kind:"ai", text:reply});
+      scrollLog();
+    } else {
+      /* 返答なし＝台本の次の発言がそのまま応答になる、というAIの判断 */
+      thinking.remove();
+    }
+
+    if(mustHang){
+      st.ending = true;
+      st.hist.push({kind:"sys", text:"相手が電話を切った"});
+      var doEnd = function(){
+        addChip("<b>ツーッ、ツーッ……相手のほうが、電話を切りました。</b>");
+        busyTone();
+        st.autoT = setTimeout(function(){ finish("them"); }, 3200);
+      };
+      if(reply){
+        speakText(reply, sp, function(){ st.autoT = setTimeout(doEnd, 500); });
+      } else {
+        st.autoT = setTimeout(doEnd, 400);
+      }
+      return;
+    }
+
+    if(!reply){
+      st.autoT = setTimeout(next, 600);          // 台本に譲る
+    } else {
+      speakText(reply, sp, function(){
+        if(st.ended || st.ending) return;
+        if(j.class === "follow"){
+          st.autoT = setTimeout(next, 900);      // 素直に答えたら台本が自然に続く
+        } else {
+          startListen();                          // 押し返し・曖昧なら、続けて話せるようマイクを開く
+        }
+      });
+    }
+  }catch(e){
+    thinking.remove();
+    addChip("AI応答でエラー：" + esc(e.message) + "　もう一度「話す」を押すか、通信環境を確認してください。", true);
+    $("say").value = t;   // 打った文を戻す
+  }finally{
+    setBusy(false);
+  }
+}
+function setBusy(b){
+  st.busy = b;
+  $("sendBtn").disabled = b;
+  $("nextBtn").disabled = b;
+}
+
+/* ==================== 終了と結果 ==================== */
+function finish(howEnd){  // "me"=自分で切った / "them"=相手が切った / "end"=最後まで
+  if(st.ended) return;
+  st.ended = true;
+  clearTimeout(st.autoT); st.autoT = null;
+  stopSpeech(); stopListen(); stopRing(); stopHold();
+  clearInterval(st.tick);
+  st.endMs = Date.now() - st.t0;
+  st.howEnd = howEnd;
+  saveLog();
+  showResult();
+}
+function showResult(){
+  var v;
+  var heard = Math.min(st.idx + 1, SCRIPT.length);
+  if(st.howEnd === "me"){
+    v = heard + "番目の発言のところで、あなたから電話を切りました。本当の電話でも、これがいちばん良い終わり方です。";
+  } else if(st.howEnd === "them"){
+    v = "押し返しを" + st.pushCount + "回。相手のほうが先に、電話を切りました。詐欺の電話は、押し返しに長くは耐えられません。";
+  } else {
+    v = "最後まで電話が続きました。相手は、あなたを銀行に向かわせるところまで話を進めました。";
+  }
+  $("verdict").textContent = v;
+
+  var h = "";
+  h += '<div class="stat"><b>' + fmt(st.endMs) + '</b><span>通話の長さ</span></div>';
+  h += '<div class="stat"><b>' + st.exchanges + ' 回</b><span>あなたが話した回数</span></div>';
+  h += '<div class="stat"><b>' + st.pushCount + ' 回</b><span>そのうち「押し返した」と判定された回数</span></div>';
+  $("stats").innerHTML = h;
+
+  var out = "";
+  for(var i=0;i<st.hist.length;i++){
+    var e = st.hist[i];
+    if(e.kind === "script"){
+      var l = SCRIPT[e.idx];
+      out += '<div class="line"><div class="meta">' + (e.idx+1) + '　' + esc(l.who) + '</div>';
+      out += '<p class="say">「' + esc(e.text) + '」</p>';
+      if(l.flag){
+        var label = l.flag.level === "max" ? "⚠ これだけで詐欺と判断してよい"
+                  : l.flag.level === "mid" ? "⚠ 危ないところ" : "小さな違和感";
+        out += '<div class="flag f-' + l.flag.level + '"><b>' + label + '</b>' + esc(l.flag.why) + '</div>';
+      }
+      out += '</div>';
+    } else if(e.kind === "me"){
+      var cname = e.cls === "push" ? "押し返した" : e.cls === "vague" ? "曖昧" : e.cls === "follow" ? "従った" : "";
+      out += '<div class="line meL"><div class="meta">あなた' + (cname ? '　—　判定：' + cname : '') + '</div>';
+      out += '<p class="say">「' + esc(e.text) + '」</p></div>';
+    } else if(e.kind === "ai"){
+      out += '<div class="line aiL"><div class="meta">相手（AIの即興応答）</div>';
+      out += '<p class="say">「' + esc(e.text) + '」</p></div>';
+    } else if(e.kind === "sys"){
+      out += '<div class="line"><div class="meta">' + esc(e.text) + '</div></div>';
+    }
+  }
+  $("lines").innerHTML = out;
+  show("s-result");
+}
+
+/* ==================== つなぎ ==================== */
+function plainTranscript(){
+  var out = ["【あやしい電話 体験プログラム 第1回・AI会話試作】通話の全文"];
+  for(var i=0;i<st.hist.length;i++){
+    var e = st.hist[i];
+    if(e.kind === "script")    out.push((e.idx+1) + "　" + e.who + "：「" + e.text + "」");
+    else if(e.kind === "ai")   out.push("【AI即興】相手：「" + e.text + "」");
+    else if(e.kind === "me")   out.push("あなた（判定：" + (e.cls === "push" ? "押し返した" : e.cls === "vague" ? "曖昧" : e.cls === "follow" ? "従った" : "—") + "）：「" + e.text + "」");
+    else if(e.kind === "sys")  out.push("（" + e.text + "）");
+  }
+  out.push("― 通話 " + fmt(st.endMs) + "／発言 " + st.exchanges + "回／押し返し " + st.pushCount + "回");
+  return out.join("\n");
+}
+$("copyBtn").addEventListener("click", function(){
+  var t = plainTranscript();
+  function fallback(){
+    var ta = $("copySrc");
+    ta.value = t; ta.select();
+    try{ document.execCommand("copy"); }catch(e){}
+  }
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(t).then(function(){}, fallback);
+  } else { fallback(); }
+  $("copyBtn").textContent = "コピーしました ✓";
+  setTimeout(function(){ $("copyBtn").textContent = "通話の全文を文字でコピー"; }, 1800);
+});
+$("dlBtn").addEventListener("click", function(){
+  var d = new Date();
+  var name = "tsuwa-" + d.getFullYear() + ("0"+(d.getMonth()+1)).slice(-2) + ("0"+d.getDate()).slice(-2) +
+             "-" + ("0"+d.getHours()).slice(-2) + ("0"+d.getMinutes()).slice(-2) + ".txt";
+  var blob = new Blob([plainTranscript()], {type:"text/plain;charset=utf-8"});
+  var a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 800);
+});
+$("personaIn").value = DEFAULT_PERSONA;
+$("startBtn").addEventListener("click", startCall);
+$("answerBtn").addEventListener("click", answerCall);
+$("hangBtn").addEventListener("click", function(){ finish("me"); });
+$("nextBtn").addEventListener("click", next);
+$("sendBtn").addEventListener("click", send);
+$("say").addEventListener("keydown", function(e){
+  if(e.key === "Enter" && !e.isComposing){ e.preventDefault(); send(); }
+});
+$("againBtn").addEventListener("click", function(){ show("s-start"); });
+</script>
+</body>
+</html>
